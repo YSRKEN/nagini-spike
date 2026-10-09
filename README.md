@@ -26,6 +26,7 @@ TDD（先に検査の失敗を確認し、実装して成功させる進め方�
 | リストをループで順に読めるか | 読み取り権限と途中の条件を維持して、非負整数の和の非負性を検証できた。正確な合計値は実行テストで確認 | [走査の実験](docs/proofs.md) |
 | 辞書から安全に値を読めるか | キーの有無を分けて、存在する値または0を返す仕様を検証できた。別キーの参照と権限違反を拒否した | [辞書の実験](docs/proofs.md) |
 | クラスの初期化と更新を契約で検証できるか | 整数属性の初期値と1増える更新を保証し、呼び出し側で二回の更新を検証できた | [クラスの実験](docs/proofs.md) |
+| 整数除算の境界条件を検証できるか | 正の除数で再構成の等式と余りの範囲を検証できた。商・余りの誤りとゼロ除算の危険を拒否した | [境界条件の実験](docs/proofs.md) |
 
 ## 動かし方
 
@@ -38,7 +39,7 @@ uv run --locked python scripts/check.py
 ```
 
 この手順はWindowsで実行して確認しました。Linux・macOSでは未確認です。
-lint・整形・型検査・97件のテストと、正しい実装の検証・誤実装の拒否が通っています。
+lint・整形・型検査・111件のテストと、正しい実装の検証・誤実装の拒否が通っています。
 誤実装の検証では意図的に`Verification failed`が出ます。
 検査全体の成功は最後のメッセージと終了コードで確認します。
 環境の条件、結果の読み方、開発時の設定は[環境](docs/environments.md)を参照してください。
@@ -57,6 +58,7 @@ lint・整形・型検査・97件のテストと、正しい実装の検証・�
 | [examples/list_scan.py](examples/list_scan.py) | 非負整数のリストを走査し、結果が非負になることを検証する例 |
 | [examples/dict_read.py](examples/dict_read.py) | 整数の辞書でキーがあれば値、なければ0を返す例 |
 | [examples/counter_contract.py](examples/counter_contract.py) | 整数属性を初期化し、1増やすメソッドと呼び出し側を契約で検証する例 |
+| [examples/division_boundaries.py](examples/division_boundaries.py) | 正の除数で整数の商と余りを計算し、再構成と余りの範囲を検証する例 |
 | [tests/](tests/) | 具体例の実行、検証成功、狙った理由での拒否を確認する検査 |
 | [scripts/check.py](scripts/check.py) | 検査一式を実行する入口 |
 | [scripts/extract_absolute.py](scripts/extract_absolute.py) | 絶対値の契約付きソースを検証し、実行用コピーを生成する実験 |
