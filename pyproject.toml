@@ -1,0 +1,32 @@
+[project]
+name = "nagini-spike"
+version = "0.1.0"
+description = "小さなPythonコードでNaginiの検証を試す"
+requires-python = ">=3.12,<3.15"
+dependencies = ["nagini==1.3.1"]
+
+[dependency-groups]
+dev = ["pytest==9.1.1", "ruff==0.16.10", "pyright==1.1.414"]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "D"]
+ignore = ["D400", "D415"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
+
+[tool.pyright]
+typeCheckingMode = "strict"
+pythonVersion = "3.12"
+include = ["examples", "tests", "scripts"]
