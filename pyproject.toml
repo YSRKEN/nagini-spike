@@ -27,6 +27,8 @@ ignore = ["D400", "D415"]
 convention = "numpy"
 
 [tool.pyright]
+venvPath = "."
+venv = ".venv"
 typeCheckingMode = "strict"
 pythonVersion = "3.12"
 include = ["examples", "tests", "scripts"]
