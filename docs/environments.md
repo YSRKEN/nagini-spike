@@ -96,6 +96,7 @@ Pyrightは`field`をUnknown、既定値が1の`ratio`をintと推論し、
 [書き込み例](../examples/list_write.py)でも同じ`Acc`を使い、importの未知の型だけを
 局所的に指定しています。分数を渡さないので、引数の診断の例外は必要ありません。
 [走査例](../examples/list_scan.py)も同じ型注釈の事情から、`Acc`のimportと分数を渡す行だけに局所的な例外を指定しています。
+[辞書の読み取り例](../examples/dict_read.py)でも、同じ`Acc`のimportと分数の引数に局所的な例外を指定しています。
 型検査の例外が不要な形で配布物の注釈が整備されたかは、今後の版で別途確認する事項です。
 
 ## 開発時のGit設定
