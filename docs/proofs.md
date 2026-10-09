@@ -365,6 +365,39 @@ Ensures(self.value == Old(self.value) + 1)
 一般的なクラスの抽出や、契約を除いたプログラム全体の正しさを保証する仕組みではありません。
 この結果を、継承・プロパティ・複数属性・別名参照・並行実行やクラス全体の不変条件へ一般化していません。
 
+## 整数除算の安全条件と商・余りの境界
+
+[division_boundaries.py](../examples/division_boundaries.py)は、正の除数で商と余りを返します。
+仕様は次の二つの条件です。
+
+```python
+assert numerator == quotient * divisor + remainder
+assert 0 <= remainder and remainder < divisor
+```
+
+一つ目は商と余りから元の整数を再構成できること、二つ目は余りが0以上で除数未満であることです。
+分子が負でもこの条件を要求します。たとえば-7を3で割ると、商は-3で余りは2です。
+
+2026-10-10に[テスト](../tests/test_division_boundaries.py)で確認しました。
+仕様とテストを先に固定し、商と余りを常に0にする未完成の実装で失敗を確認しました。
+同じ仕様のまま`numerator // divisor`と`numerator % divisor`を実装すると検証に成功しました。
+
+| コピーの変更 | Naginiの結果 | 通常のPythonでの確認 |
+|---|---|---|
+| 正しい実装 | 再構成と余りの範囲を検証できた | 0、除数1、正負の分子、大きな整数で`divmod`と一致 |
+| 商に1を足す | 再構成の等式で拒否 | 同じassertで失敗 |
+| 余りに除数を足す | 再構成の等式で拒否 | 同じassertで失敗 |
+| 正の除数の前提と実行時のguardを両方除く | `numerator // divisor`の前提で拒否 | 除数0で`ZeroDivisionError` |
+
+元の例には`Requires(divisor > 0)`と、演算前の通常の`assert divisor > 0`を別々に置いています。
+前者は証明する入力の範囲、後者は通常実行での入力拒否です。
+除数0と負の除数は元の例では演算前に拒否されることを確認しました。
+これはassertが有効な通常実行での結果で、`python -O`は対象外です。
+
+今回は関数内部の最後のassertの証明です。返り値を呼び出し側へ保証する事後条件は宣言していません。
+整数二つのタプルを返すこの例を確認しただけで、任意のタプル操作に一般化していません。
+負の除数、浮動小数点数、例外の捕捉や`divmod`関数自体は静的検証していません。
+
 ## Bend 2の実験から取り入れた役割分担
 
 [bend2-spikeの説明](https://github.com/YSRKEN/bend2-spike/blob/main/docs/proofs.md)では、
