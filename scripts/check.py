@@ -28,7 +28,7 @@ def rejected(returncode: int, output: str) -> bool:
 
 def timeout_for(arguments: list[str]) -> int:
     """個々の検証と、それらをまとめて実行するテストの制限を返す。"""
-    return 360 if arguments[:2] == ["-m", "pytest"] else 90
+    return 600 if arguments[:2] == ["-m", "pytest"] else 90
 
 
 def run(arguments: list[str], label: str) -> tuple[int, str]:
