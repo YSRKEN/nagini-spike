@@ -22,6 +22,7 @@ TDD（先に検査の失敗を確認し、実装して成功させる進め方�
 | whileループで範囲の和を検証できるか | 途中の和を表す不変条件で成功した。誤計算と不変条件不足は異なる箇所で失敗した | [ループの実験](docs/proofs.md) |
 | リストの内容を読み取れるか | 空と非空の分岐、長さ、先頭の読み取りを検証できた。添字の誤り・権限不足・読み取り専用での書き込みは拒否した | [リストの実験](docs/proofs.md) |
 | リストの内容を書き換えられるか | 書き込み権限で先頭の値と長さを検証できた。最初の例では残りの要素の不変性を実行テストだけで確認。仕様を強めた例では静的検証でも保証できた | [書き込みの実験](docs/proofs.md) |
+| リストを渡す関数の保証を呼び出し側でも使えるか | 非空リストの長さ・先頭の値・書き込み権限を事後条件で返せた。契約を弱めると呼び出し側で失敗した | [リストの契約](docs/proofs.md) |
 
 ## 動かし方
 
@@ -34,7 +35,7 @@ uv run --locked python scripts/check.py
 ```
 
 この手順はWindowsで実行して確認しました。Linux・macOSでは未確認です。
-lint・整形・型検査・64件のテストと、正しい実装の検証・誤実装の拒否が通っています。
+lint・整形・型検査・69件のテストと、正しい実装の検証・誤実装の拒否が通っています。
 誤実装の検証では意図的に`Verification failed`が出ます。
 検査全体の成功は最後のメッセージと終了コードで確認します。
 環境の条件、結果の読み方、開発時の設定は[環境](docs/environments.md)を参照してください。
@@ -49,6 +50,7 @@ lint・整形・型検査・64件のテストと、正しい実装の検証・�
 | [examples/list_head.py](examples/list_head.py) | 空なら0、それ以外なら先頭を返す読み取りの例 |
 | [examples/list_write.py](examples/list_write.py) | 空なら何もせず、要素があれば先頭を指定値に置き換える例 |
 | [examples/list_frame.py](examples/list_frame.py) | 変更前の値と比較して、先頭以外の全要素が変わらないことも検証する例 |
+| [examples/list_contract.py](examples/list_contract.py) | 非空リストの先頭の値と長さを保証し、書き込み権限を呼び出し側へ返す例 |
 | [tests/](tests/) | 具体例の実行、検証成功、狙った理由での拒否を確認する検査 |
 | [scripts/check.py](scripts/check.py) | 検査一式を実行する入口 |
 | [scripts/extract_absolute.py](scripts/extract_absolute.py) | 絶対値の契約付きソースを検証し、実行用コピーを生成する実験 |
