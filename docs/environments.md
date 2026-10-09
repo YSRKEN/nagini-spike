@@ -93,6 +93,8 @@ Pyrightは`field`をUnknown、既定値が1の`ratio`をintと推論し、
 [list_head.py](../examples/list_head.py)では、`Acc`のimportに対する未知の型の診断と、
 分数の引数に対する診断の二か所だけを`pyright: ignore`で指定しています。
 プロジェクト全体のstrict設定やほかの診断は変更していません。
+[書き込み例](../examples/list_write.py)でも同じ`Acc`を使い、importの未知の型だけを
+局所的に指定しています。分数を渡さないので、引数の診断の例外は必要ありません。
 型検査の例外が不要な形で配布物の注釈が整備されたかは、今後の版で別途確認する事項です。
 
 ## 開発時のGit設定
