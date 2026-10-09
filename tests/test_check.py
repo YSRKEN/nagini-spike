@@ -31,7 +31,7 @@ def test_rejected_requires_target_failure(returncode: int, output: str, expected
 @pytest.mark.parametrize(
     "arguments,expected",
     [
-        (["-m", "pytest", "-q", "tests"], 180),
+        (["-m", "pytest", "-q", "tests"], 240),
         (["-m", "nagini_translation.main", "examples/list_head.py"], 90),
         (["-m", "ruff", "check", "examples"], 90),
     ],
