@@ -26,6 +26,11 @@ def rejected(returncode: int, output: str) -> bool:
     )
 
 
+def timeout_for(arguments: list[str]) -> int:
+    """個々の検証と、それらをまとめて実行するテストの制限を返す。"""
+    return 180 if arguments[:2] == ["-m", "pytest"] else 90
+
+
 def run(arguments: list[str], label: str) -> tuple[int, str]:
     """タイムアウトを設け、プロジェクト内だけで検査を実行する。"""
     print(label, flush=True)
@@ -45,7 +50,7 @@ def run(arguments: list[str], label: str) -> tuple[int, str]:
         text=True,
         encoding="utf-8",
         errors="replace",
-        timeout=90,
+        timeout=timeout_for(arguments),
         check=False,
     )
     output = process.stdout + process.stderr
