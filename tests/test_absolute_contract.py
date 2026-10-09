@@ -1,10 +1,13 @@
 """仕様を固定して実装し、契約が呼び出し側に届くことを確かめる。"""
 
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
 
 import scripts.check as check
+import scripts.extract_absolute as extractor
 
 SOURCE = Path(__file__).resolve().parents[1] / "examples" / "absolute_contract.py"
 
@@ -12,8 +15,17 @@ SOURCE = Path(__file__).resolve().parents[1] / "examples" / "absolute_contract.p
 def test_contract_verifies(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """実装の契約と、それを利用する呼び出し側の両方が通る。"""
     monkeypatch.setattr(check, "RESULTS", tmp_path)
-    returncode, output = check.run(["-m", "nagini_translation.main", str(SOURCE)], "contract")
-    assert check.accepted(returncode, output), output
+    monkeypatch.setattr(extractor, "RESULTS", tmp_path)
+    assert extractor.main() == 0
+    path = tmp_path / "absolute_runtime.py"
+    probe = (
+        "import runpy, sys; m = runpy.run_path(sys.argv[1]); "
+        "assert m['absolute'](-1) == 1; m['caller'](-1)"
+    )
+    process = subprocess.run(
+        [sys.executable, "-c", probe, str(path)], capture_output=True, text=True, timeout=10
+    )
+    assert process.returncode == 0, process.stdout + process.stderr
 
 
 @pytest.mark.parametrize("mutation", ["wrong_implementation", "missing_contract"])

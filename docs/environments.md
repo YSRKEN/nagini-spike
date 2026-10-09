@@ -45,6 +45,31 @@ Nagini自体のファイルは変更していません。
 実行ログ、壊したコピー、結果のJSONは`results/`に生成します。
 環境固有のパスを含み得るため、Gitの追跡対象には含めません。
 
+## 契約付きの絶対値を実行する
+
+通常のPythonで契約付きのファイルを直接呼ぶと、検証用の`ResultT`の評価で失敗します。
+この例では、次のコマンドで元のコードをNaginiで検証してから、実行用コピーを生成します。
+
+```powershell
+uv run --locked python -m scripts.extract_absolute
+uv run --locked python -c "import runpy; m = runpy.run_path('results/absolute_runtime.py'); print(m['absolute'](-17)); m['caller'](-17)"
+```
+
+2026-10-10に実行し、検証成功後にコピーが生成され、二つ目のコマンドが`17`を表示して
+正常終了することを確認しました。`runpy.run_path`は、指定したPythonファイルを読み込んで
+関数などを取り出す標準ライブラリの機能です。
+
+生成される`results/absolute_runtime.py`はGitで追跡しません。
+生成開始時には実行を拒否する内容で出力先を上書きし、検証が失敗した場合に
+前回の成功コピーを今回の結果として誤用できないようにしています。
+検証前後で元のソースが変わっていないことも確認してから保存します。
+検査一式では、テスト用の一時ディレクトリで同じ生成と実行の流れを確認します。
+
+このスクリプトは今回の絶対値の例専用です。
+[公式WikiのGhost code説明](https://github.com/marcoeilers/nagini/wiki#ghost-code)には
+`--extraction`の記載がありますが、導入済みのNagini 1.3.1ではCLIのヘルプとソースに
+そのオプションがありませんでした。Wikiの機能をこの版で利用できるとは扱わず、版も変更していません。
+
 ## 検査結果の読み方
 
 最後に「すべての検査に成功しました。」と出て終了コードが0になれば、
