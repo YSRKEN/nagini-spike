@@ -18,7 +18,7 @@ TDD（先に検査の失敗を確認し、実装して成功させる進め方�
 | 正しい実装を通すだけでなく、誤実装を拒否するか | 負数の分岐を壊すと、非負条件の違反で拒否した | [仕様と検証](docs/proofs.md) |
 | 仕様を先に決め、TDDで実装できるか | 未完成の実装の失敗を確認し、契約を変えずに実装して成功した | [TDDの実験](docs/proofs.md) |
 | 部品の保証を呼び出し側でも使えるか | 返り値の契約で使えた。非負の保証を外すと呼び出し側が失敗した | [契約の実験](docs/proofs.md) |
-| 検証したコードを通常のPythonで実行できるか | assertだけの例は実行できる。契約付きの例は直接呼ぶとエラーになる | [実行上の制約](docs/language.md) |
+| 検証したコードを通常のPythonで実行できるか | assertだけの例は直接実行でき、契約付きの例も検証後に生成したコピーで実行できた | [実行上の制約](docs/language.md) |
 
 ## 動かし方
 
@@ -31,7 +31,7 @@ uv run --locked python scripts/check.py
 ```
 
 この手順はWindowsで実行して確認しました。Linux・macOSでは未確認です。
-lint・整形・型検査・17件のテストと、正しい実装の検証・誤実装の拒否が通っています。
+lint・整形・型検査・24件のテストと、正しい実装の検証・誤実装の拒否が通っています。
 誤実装の検証では意図的に`Verification failed`が出ます。
 検査全体の成功は最後のメッセージと終了コードで確認します。
 環境の条件、結果の読み方、開発時の設定は[環境](docs/environments.md)を参照してください。
@@ -41,9 +41,10 @@ lint・整形・型検査・17件のテストと、正しい実装の検証・�
 | パス | 内容 |
 |---|---|
 | [examples/absolute.py](examples/absolute.py) | 通常のPythonでも実行する、assertを使う最小例 |
-| [examples/absolute_contract.py](examples/absolute_contract.py) | 返り値の契約と、その保証を使う呼び出し側。現段階では検証用 |
+| [examples/absolute_contract.py](examples/absolute_contract.py) | 返り値の契約と、その保証を使う呼び出し側。直接実行には契約の除去が必要 |
 | [tests/](tests/) | 具体例の実行、検証成功、狙った理由での拒否を確認する検査 |
 | [scripts/check.py](scripts/check.py) | 検査一式を実行する入口 |
+| [scripts/extract_absolute.py](scripts/extract_absolute.py) | 絶対値の契約付きソースを検証し、実行用コピーを生成する実験 |
 | [docs/](docs/) | 手順、Pythonの確認範囲、検証の仕組みと実験結果 |
 
 ## もっと知るには
