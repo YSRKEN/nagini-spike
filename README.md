@@ -10,7 +10,7 @@ TDD（先に検査の失敗を確認し、実装して成功させる進め方�
 ## 試したこと
 
 2026-10-10に、Windowsネイティブ、Python 3.13.5、Java 17、Nagini 1.3.1、Z3 4.8.7で確認しました。
-題材は整数の絶対値だけです。確認した範囲は[Pythonの機能](docs/language.md)を参照してください。
+題材は整数の絶対値と、整数の範囲を足し合わせるwhileループです。確認した範囲は[Pythonの機能](docs/language.md)を参照してください。
 
 | 問い | 結果 | 詳しく |
 |---|---|---|
@@ -19,6 +19,7 @@ TDD（先に検査の失敗を確認し、実装して成功させる進め方�
 | 仕様を先に決め、TDDで実装できるか | 未完成の実装の失敗を確認し、契約を変えずに実装して成功した | [TDDの実験](docs/proofs.md) |
 | 部品の保証を呼び出し側でも使えるか | 返り値の契約で使えた。非負の保証を外すと呼び出し側が失敗した | [契約の実験](docs/proofs.md) |
 | 検証したコードを通常のPythonで実行できるか | assertだけの例は直接実行でき、契約付きの例も検証後に生成したコピーで実行できた | [実行上の制約](docs/language.md) |
+| whileループで範囲の和を検証できるか | 途中の和を表す不変条件で成功した。誤計算と不変条件不足は異なる箇所で失敗した | [ループの実験](docs/proofs.md) |
 
 ## 動かし方
 
@@ -31,7 +32,7 @@ uv run --locked python scripts/check.py
 ```
 
 この手順はWindowsで実行して確認しました。Linux・macOSでは未確認です。
-lint・整形・型検査・24件のテストと、正しい実装の検証・誤実装の拒否が通っています。
+lint・整形・型検査・34件のテストと、正しい実装の検証・誤実装の拒否が通っています。
 誤実装の検証では意図的に`Verification failed`が出ます。
 検査全体の成功は最後のメッセージと終了コードで確認します。
 環境の条件、結果の読み方、開発時の設定は[環境](docs/environments.md)を参照してください。
@@ -42,6 +43,7 @@ lint・整形・型検査・24件のテストと、正しい実装の検証・�
 |---|---|
 | [examples/absolute.py](examples/absolute.py) | 通常のPythonでも実行する、assertを使う最小例 |
 | [examples/absolute_contract.py](examples/absolute_contract.py) | 返り値の契約と、その保証を使う呼び出し側。直接実行には契約の除去が必要 |
+| [examples/sum_range.py](examples/sum_range.py) | 0からn未満までを足すwhileループ。途中の条件と最後のassertを検証 |
 | [tests/](tests/) | 具体例の実行、検証成功、狙った理由での拒否を確認する検査 |
 | [scripts/check.py](scripts/check.py) | 検査一式を実行する入口 |
 | [scripts/extract_absolute.py](scripts/extract_absolute.py) | 絶対値の契約付きソースを検証し、実行用コピーを生成する実験 |
