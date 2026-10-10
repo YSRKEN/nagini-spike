@@ -2,7 +2,7 @@
 
 <!-- scripts/render_progress.py が investigation.json から生成。直接編集しない。 -->
 
-全26件：調査済み4件（証明成功4件）、未確認22件。
+全26件：調査済み5件（証明成功5件）、未確認21件。
 
 doneは各行の問いについて記録した条件で調査・分類済みという意味です。
 非対応・変換失敗・仕様不足も区別して表示し、Python全体の対応や実運用の安全性は保証しません。
@@ -17,7 +17,7 @@ doneは各行の問いについて記録した条件で調査・分類済みと�
 | `list-append` | append後の長さと既存要素の保存、新しい末尾を証明できるか | done（証明成功） | [コード](../examples/list_append.py) / [診断](../docs/evidence/list_append.log) |
 | `list-update` | 指定添字の更新で他の全要素が変わらないことを証明できるか | 未確認 | — |
 | `list-empty` | 空/非空の結果契約を呼び出し側へ返し、その契約だけで先頭取得の安全性を証明できるか | 未確認 | — |
-| `dict-update` | 既存キーと新規キーへの代入で他のキーの値を保存できるか | 未確認 | — |
+| `dict-update` | 既存キーと新規キーへの代入で他のキーの値を保存できるか | done（証明成功） | [コード](../examples/dict_update.py) / [診断](../docs/evidence/dict-red.log) |
 | `dict-delete` | キー削除後の不在と他のキーの保存を証明できるか | 未確認 | — |
 | `dict-missing` | キー不在の結果契約を呼び出し側へ返し、その契約だけで辞書アクセスの安全性を証明できるか | 未確認 | — |
 | `string-length` | 文字列の連結と長さの関係を契約で扱えるか | done（証明成功） | [コード](../examples/string_length.py) / [診断](../docs/evidence/string_length.log) |
