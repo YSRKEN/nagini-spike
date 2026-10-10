@@ -109,13 +109,23 @@
     {
       "id": "string-length",
       "question": "文字列の連結と長さの関係を契約で扱えるか",
-      "status": "unconfirmed",
-      "scope": "Nagini 1.3.1; 実験で入力域・所有権・実行条件を限定する",
-      "reproduction": "",
-      "expected": "",
-      "actual": "",
-      "diagnosis": "",
-      "evidence": []
+      "status": "verified",
+      "scope": "Nagini 1.3.1。制限のない任意str二つ。空文字を含みRequires/Assume/Trustedなし。内容等式と長さ加法則を同じ一般契約で指定。",
+      "reproduction": ".venv/Scripts/python.exe -m pytest -q tests/test_string_length.py",
+      "expected": "正実装の一般契約成功。順序交換の内容違反と余分な文字追加の長さ違反を同じ二事後条件の狙った位置で拒否。",
+      "actual": "正例終了0、Verification successful、12.41秒。順序交換終了1、内容事後条件@22.12--22.29、10.75秒。余分文字追加終了1、長さ事後条件@21.12--21.44、10.97秒。対象3テスト36.41秒。通常実行6有限例は別JSON。",
+      "diagnosis": "赤stub return aは初回宣言順の内容条件@21.12--21.29で拒否。初回extra xは内容条件のみ診断。同じ二Ensuresを長さ先へ宣言順のみ調整し長さ診断を取得。順序交換は長さを保つが内容を壊す。extra xは内容と長さを両方壊し、長さだけ壊す例ではない。この題材で観測した診断順序に限定。文字列検索/添字/外部IO/組合せは未確認。有限通常実行は全Unicode入力の通常実行保証ではない。",
+      "evidence": [
+        "examples/string_length.py",
+        "tests/test_string_length.py",
+        "docs/evidence/string_length.log",
+        "docs/evidence/string_wrong_content.log",
+        "docs/evidence/string_wrong_length.log",
+        "docs/evidence/string-red.log",
+        "docs/evidence/string-initial-content.log",
+        "docs/evidence/string-initial-length.log",
+        "docs/evidence/string-runtime.json"
+      ]
     },
     {
       "id": "string-search",
