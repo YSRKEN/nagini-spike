@@ -127,3 +127,29 @@ print('accepted')
     )
     assert process.returncode == (3 if rejected else 0), process.stdout + process.stderr
     assert process.stdout.strip() == ("rejected" if rejected else "accepted")
+
+
+@pytest.mark.parametrize(
+    "code,output,expected",
+    (
+        (1, "Translation failed\nNot supported: target (probe.py@2.3)", True),
+        (0, "Translation failed\nNot supported: target (probe.py@2.3)", False),
+        (2, "Translation failed\nNot supported: target (probe.py@2.3)", False),
+        (1, "Translation failed\nNot supported: other (probe.py@2.3)", False),
+        (1, "Translation failed\nNot supported: target (probe.py@2.4)", False),
+        (1, "Java not found", False),
+        (1, "Verification failed\nNot supported: target (probe.py@2.3)", False),
+        (1, "Translation failed Not supported: target (probe.py@2.3) Verification failed", False),
+        (1, "Translation failed Not supported: target (probe.py@2.3) Verification successful", False),
+    ),
+)
+def test_translation_failure_is_separate(code: int, output: str, expected: bool) -> None:
+    """変換失敗を狙った全文位置で照合し証明失敗や起動障害を排除する。"""
+    result = ExpectedVerification("translation_failure", ("Not supported: target (probe.py@2.3)",))
+    assert result.matches(code, output) is expected
+
+
+def test_translation_failure_needs_diagnostics() -> None:
+    """変換失敗にも原因と位置の診断を必須にする。"""
+    with pytest.raises(ValueError):
+        ExpectedVerification("translation_failure")
