@@ -83,7 +83,7 @@ def main() -> int:
         if returncode != 0:
             return 1
 
-    specification = Specification("分岐後のresultが非負である", "absと通常実行の結果を照合する")
+    specification = Specification("分岐後のresultが非負かつxまたは-xに等しい", "absと通常実行の結果を照合する")
     good = VerificationCase("absolute", specification, ExpectedVerification("verified"))
     returncode, output = run(["-m", "nagini_translation.main", "examples/absolute.py"], good.name)
     if not good.expected.matches(returncode, output):
