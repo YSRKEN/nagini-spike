@@ -2,7 +2,8 @@
 
 import ast
 
-from scripts.check import RESULTS, ROOT, accepted, run
+from scripts.check import RESULTS, ROOT, run
+from scripts.verification_cases import ExpectedVerification, Specification, VerificationCase
 
 IMPORT = "from nagini_contracts.contracts import Ensures, ResultT"
 CONTRACTS = (
@@ -72,10 +73,16 @@ def main() -> int:
     )
     source = source_path.read_bytes()
     extracted = extract(source.decode("utf-8"))
-    returncode, output = run(
-        ["-m", "nagini_translation.main", str(source_path)], "absolute_contract_extract"
+    case = VerificationCase(
+        "absolute_contract_extract",
+        Specification(
+            "absoluteが非負かつxまたは-xを返し、callerへ契約が届く",
+            "既知のAST宣言だけを除くコピーでabsとcallerを照合する",
+        ),
+        ExpectedVerification("verified"),
     )
-    if not accepted(returncode, output):
+    returncode, output = run(["-m", "nagini_translation.main", str(source_path)], case.name)
+    if not case.expected.matches(returncode, output):
         print("元の契約付きコードの検証が成功していません。")
         return 1
     if source_path.read_bytes() != source:

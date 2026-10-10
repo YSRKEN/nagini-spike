@@ -8,22 +8,30 @@ import sys
 from pathlib import Path
 from typing import cast
 
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from scripts.verification_cases import (
+    ExpectedVerification,
+    Mutation,
+    Specification,
+    VerificationCase,
+)
+
 ROOT = Path(__file__).resolve().parents[1]
 RESULTS = ROOT / "results"
 
 
 def accepted(returncode: int, output: str) -> bool:
     """終了コードと検証成功の診断が揃っているかを返す。"""
-    return returncode == 0 and "Verification successful" in output
+    return ExpectedVerification("verified").matches(returncode, output)
 
 
 def rejected(returncode: int, output: str) -> bool:
     """今回壊した非負条件の検証失敗であるかを返す。"""
-    return (
-        returncode == 1
-        and "Verification failed" in output
-        and "Assertion result >= 0 might not hold." in output
-    )
+    return ExpectedVerification(
+        "proof_failure", ("Assertion result >= 0 might not hold.",)
+    ).matches(returncode, output)
 
 
 def timeout_for(arguments: list[str]) -> int:
@@ -75,21 +83,27 @@ def main() -> int:
         if returncode != 0:
             return 1
 
-    returncode, output = run(["-m", "nagini_translation.main", "examples/absolute.py"], "absolute")
-    if not accepted(returncode, output):
+    specification = Specification("分岐後のresultが非負である", "absと通常実行の結果を照合する")
+    good = VerificationCase("absolute", specification, ExpectedVerification("verified"))
+    returncode, output = run(["-m", "nagini_translation.main", "examples/absolute.py"], good.name)
+    if not good.expected.matches(returncode, output):
         print("正しい実装の検証成功を確認できません。")
         return 1
 
     source = (ROOT / "examples/absolute.py").read_text(encoding="utf-8")
-    if source.count("result = -x") != 1:
-        print("誤実装を作る置換箇所が変わっています。")
-        return 1
-    broken = source.replace("result = -x", "result = x")
+    bad = VerificationCase(
+        "absolute_bad",
+        specification,
+        ExpectedVerification("proof_failure", ("Assertion result >= 0 might not hold.",)),
+        Mutation("result = -x", "result = x"),
+    )
+    assert bad.mutation is not None
+    broken = bad.mutation.apply(source)
     (RESULTS / "absolute_bad.py").write_bytes(broken.encode("utf-8"))
     returncode, output = run(
         ["-m", "nagini_translation.main", "results/absolute_bad.py"], "absolute_bad"
     )
-    if not rejected(returncode, output):
+    if not bad.expected.matches(returncode, output):
         print("誤実装が狙った条件で拒否されたことを確認できません。")
         return 1
 
