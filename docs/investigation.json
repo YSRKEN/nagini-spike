@@ -76,13 +76,24 @@
     {
       "id": "dict-update",
       "question": "既存キーと新規キーへの代入で他のキーの値を保存できるか",
-      "status": "unconfirmed",
-      "scope": "Nagini 1.3.1; 実験で入力域・所有権・実行条件を限定する",
-      "reproduction": "",
-      "expected": "",
-      "actual": "",
-      "diagnosis": "",
-      "evidence": []
+      "status": "verified",
+      "scope": "Nagini 1.3.1。全書き込み権限を持つ任意長dict[int,int]、任意整数キーと値。一キー代入のみ。有限入力域へ制限しない。",
+      "reproduction": ".venv/Scripts/python.exe -m pytest -q tests/test_dict_update.py",
+      "expected": "同一五Ensuresで全権限返却・対象値・全旧他キー値保存・余分キーなし・旧キー存在なら長さ不変/不在なら1増を証明。対象値ずれ、旧他キー破壊、余分新規キー追加を指定事後条件で拒否。",
+      "actual": "正例終了0、Verification successful、16.89秒。対象値誤例13.56秒、他キー破壊40.79秒、余分キー17.92秒、いずれも終了1で指定全文事後条件と位置を取得。対象4pytest92.73秒。通常実行12例は別JSON。最終全pytest187件756.12秒を含むscripts/check.py終了0。",
+      "diagnosis": "全旧他キー保存はForall(int)とOld(other in values)/Old(values[other])で入場時の全辞書を参照。Assume/Trustedなし。赤stub passは対象キー存在条件@28.12--28.50で失敗。対象値ずれ@28.12--28.50、旧他キー破壊@30.8--36.9、余分キーなし@39.8--39.97。余分キー例は長さ条件も壊し、長さだけの独立誤例ではない。既存辞書読取とは別題材。別名共有権限、削除、不在アクセス、ループ、実用組合せは未確認。",
+      "evidence": [
+        "examples/dict_update.py",
+        "tests/test_dict_update.py",
+        "docs/evidence/dict_update.log",
+        "docs/evidence/dict_update_wrong_target.log",
+        "docs/evidence/dict_update_destroy.log",
+        "docs/evidence/dict_update_extra.log",
+        "docs/evidence/dict-runtime.json",
+        "docs/evidence/dict-target-tests.log",
+        "docs/evidence/dict-red.log",
+        "docs/evidence/dict-final-check.log"
+      ]
     },
     {
       "id": "dict-delete",
