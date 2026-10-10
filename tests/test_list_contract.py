@@ -3,11 +3,24 @@
 import subprocess
 import sys
 from pathlib import Path
+from typing import Literal
 
 import pytest
 
 import scripts.check as check
 from examples.list_contract import replace_head
+from scripts.verification_cases import (
+    ExpectedVerification,
+    Mutation,
+    Specification,
+    VerificationCase,
+    verify_case,
+)
+
+SPECIFICATION = Specification(
+    "非空リストの先頭が指定値、長さと全権限をcallerへ返す",
+    "既知宣言を除くコピーで先頭更新とcallerの再更新、後続値を照合する",
+)
 
 SOURCE = Path(__file__).resolve().parents[1] / "examples" / "list_contract.py"
 
@@ -24,8 +37,8 @@ def test_contract_verifies_and_runs(tmp_path: Path, monkeypatch: pytest.MonkeyPa
     verified = tmp_path / "verified.py"
     verified.write_text(source, encoding="utf-8")
     monkeypatch.setattr(check, "RESULTS", tmp_path)
-    code, output = check.run(["-m", "nagini_translation.main", str(verified)], "list_contract")
-    assert check.accepted(code, output), output
+    case = VerificationCase("list_contract", SPECIFICATION, ExpectedVerification("verified"))
+    verify_case(case, verified)
     assert verified.read_text(encoding="utf-8") == source
     declarations = [
         "    Ensures(Acc(list_pred(values)))\n",
@@ -70,18 +83,21 @@ def test_contract_rejects_target_failure(
         "no_value": ("    Ensures(values[0] == value)\n", ""),
     }
     original, replacement = changes[mutation]
-    assert source.count(original) == 1
+    change = Mutation(original, replacement)
     path = tmp_path / (mutation + ".py")
-    path.write_text(source.replace(original, replacement), encoding="utf-8")
+    path.write_text(change.apply(source), encoding="utf-8")
     monkeypatch.setattr(check, "RESULTS", tmp_path)
-    code, output = check.run(["-m", "nagini_translation.main", str(path)], mutation)
-    assert code == 1, output
-    assert "Verification failed" in output, output
+    category: Literal["verified", "proof_failure"] = "proof_failure"
+    required_diagnostics: list[str] = []
     if mutation == "wrong_value":
-        assert "Postcondition of replace_head might not hold." in output, output
-        assert "Assertion values[0] == value might not hold." in output, output
+        required_diagnostics.append("Postcondition of replace_head might not hold.")
+        required_diagnostics.append("Assertion values[0] == value might not hold.")
     elif mutation == "read_only_return":
-        assert "The precondition of values[0] = value + 1 might not hold." in output, output
-        assert "insufficient permission" in output, output
+        required_diagnostics.append("The precondition of values[0] = value + 1 might not hold.")
+        required_diagnostics.append("insufficient permission")
     else:
-        assert "Assertion values[0] == value might not hold." in output, output
+        required_diagnostics.append("Assertion values[0] == value might not hold.")
+    case = VerificationCase(
+        mutation, SPECIFICATION, ExpectedVerification(category, tuple(required_diagnostics)), change
+    )
+    verify_case(case, path)

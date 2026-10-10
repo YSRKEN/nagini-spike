@@ -3,11 +3,24 @@
 import subprocess
 import sys
 from pathlib import Path
+from typing import Literal
 
 import pytest
 
 import scripts.check as check
 from examples.counter_contract import Counter
+from scripts.verification_cases import (
+    ExpectedVerification,
+    Mutation,
+    Specification,
+    VerificationCase,
+    verify_case,
+)
+
+SPECIFICATION = Specification(
+    "初期値とincrement前後の値、属性の書き込み権限をcallerへ返す",
+    "直接宣言はNotImplementedError、既知宣言を除くコピーで初期化と2回更新を照合する",
+)
 
 SOURCE = Path(__file__).resolve().parents[1] / "examples" / "counter_contract.py"
 
@@ -24,8 +37,8 @@ def test_counter_verifies_and_runs(tmp_path: Path, monkeypatch: pytest.MonkeyPat
     verified = tmp_path / "verified.py"
     verified.write_text(source, encoding="utf-8")
     monkeypatch.setattr(check, "RESULTS", tmp_path)
-    code, output = check.run(["-m", "nagini_translation.main", str(verified)], "counter")
-    assert check.accepted(code, output), output
+    case = VerificationCase("counter", SPECIFICATION, ExpectedVerification("verified"))
+    verify_case(case, verified)
     assert verified.read_text(encoding="utf-8") == source
     declarations = {
         "        Ensures(Acc(self.value))\n": 2,
@@ -73,23 +86,26 @@ def test_counter_rejects_target_failure(
         ),
     }
     original, replacement = changes[mutation]
-    assert source.count(original) == 1
+    change = Mutation(original, replacement)
     path = tmp_path / (mutation + ".py")
-    path.write_text(source.replace(original, replacement), encoding="utf-8")
+    path.write_text(change.apply(source), encoding="utf-8")
     monkeypatch.setattr(check, "RESULTS", tmp_path)
-    code, output = check.run(["-m", "nagini_translation.main", str(path)], mutation)
-    assert code == 1, output
-    assert "Verification failed" in output, output
+    category: Literal["verified", "proof_failure"] = "proof_failure"
+    required_diagnostics: list[str] = []
     if mutation in ("wrong_initial", "wrong_increment"):
-        assert "Postcondition of" in output, output
+        required_diagnostics.append("Postcondition of")
         diagnostic = (
             "Assertion self.value == initial might not hold."
             if mutation == "wrong_initial"
             else "Assertion self.value == Old(self.value) + 1 might not hold."
         )
-        assert diagnostic in output, output
+        required_diagnostics.append(diagnostic)
     elif mutation == "no_value":
-        assert "Assertion counter.value == initial + 1 might not hold." in output, output
+        required_diagnostics.append("Assertion counter.value == initial + 1 might not hold.")
     else:
-        assert "insufficient permission" in output, output
-        assert "increment" in output, output
+        required_diagnostics.append("insufficient permission")
+        required_diagnostics.append("increment")
+    case = VerificationCase(
+        mutation, SPECIFICATION, ExpectedVerification(category, tuple(required_diagnostics)), change
+    )
+    verify_case(case, path)

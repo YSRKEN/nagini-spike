@@ -3,11 +3,24 @@
 import subprocess
 import sys
 from pathlib import Path
+from typing import Literal
 
 import pytest
 
 import scripts.check as check
 from examples.sum_range import sum_range
+from scripts.verification_cases import (
+    ExpectedVerification,
+    Mutation,
+    Specification,
+    VerificationCase,
+    verify_case,
+)
+
+SPECIFICATION = Specification(
+    "nが非負の下で不変条件2*total == i*(i-1)と結果2*total == n*(n-1)",
+    "sum(range(n))と負数拒否を照合する。不変条件だけの除去は実行結果を変えない",
+)
 
 SOURCE = Path(__file__).resolve().parents[1] / "examples" / "sum_range.py"
 
@@ -27,8 +40,8 @@ def test_negative_input_is_rejected() -> None:
 def test_sum_verifies(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """選んだ入力の実行に加え、Naginiで最後の仕様を検証する。"""
     monkeypatch.setattr(check, "RESULTS", tmp_path)
-    returncode, output = check.run(["-m", "nagini_translation.main", str(SOURCE)], "sum_range")
-    assert check.accepted(returncode, output), output
+    case = VerificationCase("sum_range", SPECIFICATION, ExpectedVerification("verified"))
+    verify_case(case, SOURCE)
 
 
 @pytest.mark.parametrize("mutation", ["wrong_sum", "missing_invariant"])
@@ -48,16 +61,19 @@ def test_sum_rejects_mutation(
         original = "        Invariant(2 * total == i * (i - 1))\n"
         replacement = ""
         diagnostic = "Assertion 2 * total == n * (n - 1) might not hold."
-    assert source.count(original) == 1
-    changed = source.replace(original, replacement)
+    change = Mutation(original, replacement)
+    changed = change.apply(source)
     assert changed != source
     path = tmp_path / (mutation + ".py")
     path.write_text(changed, encoding="utf-8")
     monkeypatch.setattr(check, "RESULTS", tmp_path)
-    returncode, output = check.run(["-m", "nagini_translation.main", str(path)], mutation)
-    assert returncode == 1, output
-    assert "Verification failed" in output, output
-    assert diagnostic in output, output
+    category: Literal["verified", "proof_failure"] = "proof_failure"
+    required_diagnostics: list[str] = []
+    required_diagnostics.append(diagnostic)
+    case = VerificationCase(
+        mutation, SPECIFICATION, ExpectedVerification(category, tuple(required_diagnostics)), change
+    )
+    verify_case(case, path)
 
     probe = "import runpy,sys; assert runpy.run_path(sys.argv[1])['sum_range'](10) == 45"
     process = subprocess.run(

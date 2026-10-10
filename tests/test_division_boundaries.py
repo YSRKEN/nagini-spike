@@ -3,11 +3,24 @@
 import subprocess
 import sys
 from pathlib import Path
+from typing import Literal
 
 import pytest
 
 import scripts.check as check
 from examples.division_boundaries import quotient_remainder
+from scripts.verification_cases import (
+    ExpectedVerification,
+    Mutation,
+    Specification,
+    VerificationCase,
+    verify_case,
+)
+
+SPECIFICATION = Specification(
+    "除数が正の下で商と余りの再構成等式、余りが0以上で除数未満",
+    "divmodと照合し、対象外除数はAssertionError、ガード除去時0除算はZeroDivisionError",
+)
 
 SOURCE = Path(__file__).resolve().parents[1] / "examples" / "division_boundaries.py"
 
@@ -31,8 +44,8 @@ def test_invalid_divisor_fails_early(divisor: int) -> None:
 def test_division_verifies(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """再構成の等式と余りの範囲をNaginiで検証する。"""
     monkeypatch.setattr(check, "RESULTS", tmp_path)
-    code, output = check.run(["-m", "nagini_translation.main", str(SOURCE)], "division")
-    assert check.accepted(code, output), output
+    case = VerificationCase("division", SPECIFICATION, ExpectedVerification("verified"))
+    verify_case(case, SOURCE)
 
 
 @pytest.mark.parametrize("mutation", ["wrong_quotient", "wrong_remainder", "no_guard"])
@@ -53,19 +66,22 @@ def test_division_rejects_target_failure(
         "no_guard": ("    Requires(divisor > 0)\n    assert divisor > 0\n", ""),
     }
     original, replacement = changes[mutation]
-    assert source.count(original) == 1
+    change = Mutation(original, replacement)
     path = tmp_path / (mutation + ".py")
-    path.write_text(source.replace(original, replacement), encoding="utf-8")
+    path.write_text(change.apply(source), encoding="utf-8")
     monkeypatch.setattr(check, "RESULTS", tmp_path)
-    code, output = check.run(["-m", "nagini_translation.main", str(path)], mutation)
-    assert code == 1, output
-    assert "Verification failed" in output, output
+    category: Literal["verified", "proof_failure"] = "proof_failure"
+    required_diagnostics: list[str] = []
     if mutation == "no_guard":
-        assert "The precondition of numerator // divisor might not hold." in output, output
+        required_diagnostics.append("The precondition of numerator // divisor might not hold.")
     else:
-        assert "Assertion numerator == quotient * divisor + remainder might not hold." in output, (
-            output
+        required_diagnostics.append(
+            "Assertion numerator == quotient * divisor + remainder might not hold."
         )
+    case = VerificationCase(
+        mutation, SPECIFICATION, ExpectedVerification(category, tuple(required_diagnostics)), change
+    )
+    verify_case(case, path)
     divisor = 0 if mutation == "no_guard" else 3
     probe = (
         "import runpy,sys; "
