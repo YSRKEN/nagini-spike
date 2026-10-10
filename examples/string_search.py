@@ -19,4 +19,4 @@ def contains_substring(text: str, needle: str) -> bool:
         組込み部分文字列演算と一致する真偽値。
     """
     Ensures(Result() == (needle in text))
-    return False
+    return needle in text
