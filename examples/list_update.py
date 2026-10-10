@@ -38,4 +38,4 @@ def update_preserving(values: list[int], index: int, value: int) -> None:
             ),
         )
     )
-    pass
+    values[index] = value
