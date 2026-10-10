@@ -28,10 +28,17 @@ def test_all_states(status: str, label: str) -> None:
 
 def test_preserves_rows_and_escapes_cells() -> None:
     """未確認行を消さず、表を壊す区切りや改行を整える。"""
-    text = render([
-        {"id": "one", "question": "A|B\nC", "status": "verified", "evidence": ["examples/a.py"]},
-        {"id": "two", "question": "未調査", "status": "unconfirmed", "evidence": []},
-    ])
+    text = render(
+        [
+            {
+                "id": "one",
+                "question": "A|B\nC",
+                "status": "verified",
+                "evidence": ["examples/a.py"],
+            },
+            {"id": "two", "question": "未調査", "status": "unconfirmed", "evidence": []},
+        ]
+    )
     assert "全2件" in text
     assert "調査済み1件" in text
     assert "未確認1件" in text

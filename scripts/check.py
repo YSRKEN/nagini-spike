@@ -73,6 +73,7 @@ def main() -> int:
     (RESULTS / "summary.json").write_bytes(b'{"status": "running"}')
     checks = [
         (["scripts/check_investigation.py"], "investigation"),
+        (["scripts/render_progress.py", "--check"], "progress"),
         (["-m", "ruff", "check", "examples", "scripts", "tests"], "lint"),
         (["-m", "ruff", "format", "--check", "examples", "scripts", "tests"], "format"),
         (["-m", "pyright"], "types"),
