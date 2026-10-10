@@ -2,7 +2,7 @@
 
 <!-- scripts/render_progress.py が investigation.json から生成。直接編集しない。 -->
 
-全26件：調査済み5件（証明成功5件）、未確認21件。
+全26件：調査済み6件（証明成功6件）、未確認20件。
 
 doneは各行の問いについて記録した条件で調査・分類済みという意味です。
 非対応・変換失敗・仕様不足も区別して表示し、Python全体の対応や実運用の安全性は保証しません。
@@ -15,7 +15,7 @@ doneは各行の問いについて記録した条件で調査・分類済みと�
 | `factorial-general` | 0〜4の有限例を通る偽多項式を独立した一般階乗契約で拒否し、正実装を証明できるか | done（証明成功） | [コード](../examples/factorial_general.py) / [診断](../docs/evidence/factorial-general.log) |
 | `list-exact-sum` | 任意長の整数リストの合計を要素列の数学的総和と一致する契約で証明できるか | 未確認 | — |
 | `list-append` | append後の長さと既存要素の保存、新しい末尾を証明できるか | done（証明成功） | [コード](../examples/list_append.py) / [診断](../docs/evidence/list_append.log) |
-| `list-update` | 指定添字の更新で他の全要素が変わらないことを証明できるか | 未確認 | — |
+| `list-update` | 指定添字の更新で他の全要素が変わらないことを証明できるか | done（証明成功） | [コード](../examples/list_update.py) / [診断](../docs/evidence/list_update.log) |
 | `list-empty` | 空/非空の結果契約を呼び出し側へ返し、その契約だけで先頭取得の安全性を証明できるか | 未確認 | — |
 | `dict-update` | 既存キーと新規キーへの代入で他のキーの値を保存できるか | done（証明成功） | [コード](../examples/dict_update.py) / [診断](../docs/evidence/dict_update.log) |
 | `dict-delete` | キー削除後の不在と他のキーの保存を証明できるか | 未確認 | — |
