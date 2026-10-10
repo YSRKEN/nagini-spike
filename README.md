@@ -1,80 +1,41 @@
 # Nagini検証
 
-[Nagini](https://github.com/marcoeilers/nagini)で、小さなPythonコードの正しさを検証する実験です。
-Pythonのどんな機能を検証材料にできるかと、与えられた仕様を変えずに
-TDD（先に検査の失敗を確認し、実装して成功させる進め方）でコードを書けるかを調べます。
+[Nagini](https://github.com/marcoeilers/nagini)で、仕様に合うPythonコードを証明できるかを調べる実験です。
+正実装の成功に加え、同じ仕様を満たさない誤実装が、狙った理由で拒否されることを確認します。
+仕様を先に固定し、失敗する検査から実装を進めるTDDを使います。
 
-[bend2-spike](https://github.com/YSRKEN/bend2-spike)を参考に、問いと結果を入口にまとめ、
-手順・検証の仕組み・確認範囲を詳細文書に分けています。参考元のコードは取り込んでいません。
+## 進捗を見る
 
-## 試したこと
+**[done・未確認の一覧](docs/progress.md)** で、調査中の各題材と証拠を確認できます。
+進捗表は[JSON台帳](docs/investigation.json)から生成し、通常検査で更新漏れを検出します。
+台帳以前の基礎実験とソースの一覧は[題材一覧](docs/examples.md)にまとめています。
 
-2026-10-10に、Windowsネイティブ、Python 3.13.5、Java 17、Nagini 1.3.1、Z3 4.8.7で確認しました。
-題材は整数の絶対値、範囲の和のwhileループ、整数リストの先頭の読み取り・書き換えと、リストの走査、整数の辞書の読み取り、整数状態を持つクラスです。確認した範囲は[Pythonの機能](docs/language.md)を参照してください。
+検証成功は、記述した条件がNaginiのモデル上で成立するという意味です。
+仕様の十分性や、未確認のPython機能まで保証するものではありません。
 
-| 問い | 結果 | 詳しく |
-|---|---|---|
-| 小さなPython関数を検証できるか | 絶対値の二つのassertを検証できた | [仕様と検証](docs/proofs.md) |
-| 正しい実装を通すだけでなく、誤実装を拒否するか | 負数の分岐を壊すと、非負条件の違反で拒否した | [仕様と検証](docs/proofs.md) |
-| 仕様を先に決め、TDDで実装できるか | 未完成の実装の失敗を確認し、契約を変えずに実装して成功した | [TDDの実験](docs/proofs.md) |
-| 部品の保証を呼び出し側でも使えるか | 返り値の契約で使えた。非負の保証を外すと呼び出し側が失敗した | [契約の実験](docs/proofs.md) |
-| 検証したコードを通常のPythonで実行できるか | assertだけの例は直接実行でき、契約付きの例も検証後に生成したコピーで実行できた | [実行上の制約](docs/language.md) |
-| whileループで範囲の和を検証できるか | 途中の和を表す不変条件で成功した。誤計算と不変条件不足は異なる箇所で失敗した | [ループの実験](docs/proofs.md) |
-| リストの内容を読み取れるか | 空と非空の分岐、長さ、先頭の読み取りを検証できた。添字の誤り・権限不足・読み取り専用での書き込みは拒否した | [リストの実験](docs/proofs.md) |
-| リストの内容を書き換えられるか | 書き込み権限で先頭の値と長さを検証できた。最初の例では残りの要素の不変性を実行テストだけで確認。仕様を強めた例では静的検証でも保証できた | [書き込みの実験](docs/proofs.md) |
-| 任意長リストに末尾追加して全旧要素を保てるか | 長さ1増・全旧要素保存・新末尾一致と権限返却を証明。三独立誤例を各事後条件で拒否した | [追加の実験](docs/proofs.md) |
-| リストを渡す関数の保証を呼び出し側でも使えるか | 非空リストの長さ・先頭の値・書き込み権限を事後条件で返せた。契約を弱めると呼び出し側で失敗した | [リストの契約](docs/proofs.md) |
-| リストをループで順に読めるか | 読み取り権限と途中の条件を維持して、非負整数の和の非負性を検証できた。正確な合計値は実行テストで確認 | [走査の実験](docs/proofs.md) |
-| 辞書から安全に値を読めるか | キーの有無を分けて、存在する値または0を返す仕様を検証できた。別キーの参照と権限違反を拒否した | [辞書の実験](docs/proofs.md) |
-| クラスの初期化と更新を契約で検証できるか | 整数属性の初期値と1増える更新を保証し、呼び出し側で二回の更新を検証できた | [クラスの実験](docs/proofs.md) |
-| 整数除算の境界条件を検証できるか | 正の除数で再構成の等式と余りの範囲を検証できた。商・余りの誤りとゼロ除算の危険を拒否した | [境界条件の実験](docs/proofs.md) |
-| 有限例を通る偽階乗を一般仕様で拒否できるか | 独立Pureの再帰一般定義で正実装が成功。同じ契約で偽6次多項式のHorner形を拒否し、0〜4一致・5で676対120を実測 | [一般階乗契約](docs/proofs.md) |
+## 動かす
 
-## 動かし方
-
+Windowsで、Python 3.13・Java 17・Nagini 1.3.1を使って確認しています。
 uv、Python 3.13、Java 17が使える環境で、リポジトリのルートから実行します。
-依存の版は`uv.lock`に固定しています。
+依存の版は`uv.lock`に固定しています。環境条件と診断の読み方は[実行環境](docs/environments.md)を参照してください。
 
 ```powershell
 uv sync --locked --python 3.13
 uv run --locked python scripts/check.py
 ```
 
-この手順はWindowsで実行して確認しました。Linux・macOSでは未確認です。
-lint・整形・型検査・169件のテストと、正しい実装の検証・誤実装の拒否が通っています。
-誤実装の検証では意図的に`Verification failed`が出ます。
-検査全体の成功は最後のメッセージと終了コードで確認します。
-環境の条件、結果の読み方、開発時の設定は[環境](docs/environments.md)を参照してください。
+検査にはlint・整形・strict型検査・通常実行・Naginiの実検証を含めます。
+誤実装の拒否では意図的に`Verification failed`が出ます。検査全体の成功は最後のメッセージと終了コードで確認します。
 
-## 構成
+## 詳しく読む
 
-| パス | 内容 |
-|---|---|
-| [examples/absolute.py](examples/absolute.py) | 通常のPythonでも実行する、assertを使う最小例 |
-| [examples/absolute_contract.py](examples/absolute_contract.py) | 返り値の契約と、その保証を使う呼び出し側。直接実行には契約の除去が必要 |
-| [examples/sum_range.py](examples/sum_range.py) | 0からn未満までを足すwhileループ。途中の条件と最後のassertを検証 |
-| [examples/list_head.py](examples/list_head.py) | 空なら0、それ以外なら先頭を返す読み取りの例 |
-| [examples/list_write.py](examples/list_write.py) | 空なら何もせず、要素があれば先頭を指定値に置き換える例 |
-| [examples/list_frame.py](examples/list_frame.py) | 変更前の値と比較して、先頭以外の全要素が変わらないことも検証する例 |
-| [examples/list_contract.py](examples/list_contract.py) | 非空リストの先頭の値と長さを保証し、書き込み権限を呼び出し側へ返す例 |
-| [examples/list_append.py](examples/list_append.py) | 任意長の末尾追加と全旧要素保存、権限返却を呼び出し側も利用する例 |
-| [examples/list_scan.py](examples/list_scan.py) | 非負整数のリストを走査し、結果が非負になることを検証する例 |
-| [examples/dict_read.py](examples/dict_read.py) | 整数の辞書でキーがあれば値、なければ0を返す例 |
-| [examples/counter_contract.py](examples/counter_contract.py) | 整数属性を初期化し、1増やすメソッドと呼び出し側を契約で検証する例 |
-| [examples/division_boundaries.py](examples/division_boundaries.py) | 正の除数で整数の商と余りを計算し、再構成と余りの範囲を検証する例 |
-| [examples/factorial_general.py](examples/factorial_general.py) | 独立Pureの一般階乗モデルと再帰正実装。偽多項式との同契約比較はテストに保持 |
-| [tests/](tests/) | 具体例の実行、検証成功、狙った理由での拒否を確認する検査 |
-| [scripts/check.py](scripts/check.py) | 検査一式を実行する入口 |
-| [scripts/extract_absolute.py](scripts/extract_absolute.py) | 絶対値の契約付きソースを検証し、実行用コピーを生成する実験 |
-| [docs/](docs/) | 手順、Pythonの確認範囲、検証の仕組みと実験結果 |
+| 知りたいこと | 文書 |
+| --- | --- |
+| doneと未確認、元の証拠 | [調査の進捗](docs/progress.md) |
+| 台帳の判定・更新・完了条件 | [調査方法](docs/investigation.md) |
+| 試したコードを探す | [題材一覧](docs/examples.md) |
+| Python機能の確認範囲と実行上の制約 | [Pythonの機能](docs/language.md) |
+| テストと証明の違い、契約と誤実装の拒否 | [仕様と検証](docs/proofs.md) |
+| 環境構築、ログ、開発設定 | [実行環境](docs/environments.md) |
 
-## もっと知るには
-
-| 文書 | 読む人と内容 |
-|---|---|
-| [docs/environments.md](docs/environments.md) | 動かしたい人へ。確認した環境、実行手順、診断とログ、Git設定、依存のライセンス |
-| [docs/language.md](docs/language.md) | Pythonで書きたい人へ。機能ごとの確認範囲、必要な記法、実行時の制約 |
-| [docs/proofs.md](docs/proofs.md) | 検証を理解したい人へ。テストとの違い、契約、TDDの実験、信頼する処理系と保証の限界 |
-
-検証成功は、書いた条件がNaginiのモデル上で成立したという結果です。
-仕様が十分であることや、未確認のPython機能まで正しいことは保証しません。
+構成の参考は[bend2-spike](https://github.com/YSRKEN/bend2-spike)です。参考元のコードは取り込んでいません。

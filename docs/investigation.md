@@ -29,31 +29,7 @@
 
 階乗の問いは非負整数全体を対象とし、Requiresを0〜4に狭めない。独立した一般階乗定義の同一Ensuresで正実装と偽多項式を比較する。
 
-1. `factorial-general` — 0〜4の有限例を通る偽多項式を独立した一般階乗契約で拒否し、正実装を証明できるか
-2. `list-exact-sum` — 任意長の整数リストの合計を要素列の数学的総和と一致する契約で証明できるか
-3. `list-append` — append後の長さと既存要素の保存、新しい末尾を証明できるか
-4. `list-update` — 指定添字の更新で他の全要素が変わらないことを証明できるか
-5. `list-empty` — 空/非空の結果契約を呼び出し側へ返し、その契約だけで先頭取得の安全性を証明できるか
-6. `dict-update` — 既存キーと新規キーへの代入で他のキーの値を保存できるか
-7. `dict-delete` — キー削除後の不在と他のキーの保存を証明できるか
-8. `dict-missing` — キー不在の結果契約を呼び出し側へ返し、その契約だけで辞書アクセスの安全性を証明できるか
-9. `string-length` — 文字列の連結と長さの関係を契約で扱えるか
-10. `string-search` — 文字列の添字と部分文字列検索の実用的な条件を扱えるか
-11. `optional-narrow` — Optional値をNone分岐で絞り込み安全に利用できるか
-12. `optional-return` — 検索結果のOptional戻り値と見つからない条件を対応付けられるか
-13. `for-invariant` — forで整数列を走査し不変条件から合計の正確性を証明できるか
-14. `for-break` — breakする検索ループで見つかった位置と終了条件を証明できるか
-15. `slicing-copy` — リストのスライスの範囲とコピー後の変更独立性を証明できるか
-16. `alias-permission` — 同一リストへの二つの参照に対する更新権限と観測を扱えるか
-17. `exception-raise` — 不正入力の例外送出と正常戻りの事後条件を区別できるか
-18. `exception-catch` — 例外を捕捉して代替値を返す条件と状態保存を証明できるか
-19. `inheritance-contract` — 継承したメソッドの事前・事後条件と動的呼び出しを証明できるか
-20. `third-party-boundary` — 第三者ライブラリの未検証呼び出しに必要な契約境界を特定できるか
-21. `io-boundary` — ファイルや外部IOの結果を純粋な検証対象へ渡す境界を記述できるか
-22. `inventory-combination` — 辞書・クラス状態・分岐を組み合わせ在庫更新の保存則を証明できるか
-23. `filter-combination` — Optionalとリスト走査を組み合わせ条件に合う要素だけを抽出できるか
-24. `division-combination` — 整数除算とループを組み合わせ分配の総量保存を証明できるか
-25. `state-machine-combination` — 継承・状態遷移・例外を組み合わせ不正な遷移の拒否を証明できるか
+[全題材のdone・未確認一覧](progress.md)を参照してください。各行の状態はJSON台帳と一致するよう生成します。
 
 次回の狭い追加未確認項目として、`factorial-loop-model` を台帳に登録した。
 問いは「独立Pure再帰モデルと一致するwhile実装を、Assume/Trustedなしで証明できるか」。
@@ -75,3 +51,11 @@
 実在する契約付きstub(return0)と成功期待テストを先に固定し、実Naginiが整数側事後条件を拒否する赤を確認した。対象3テストは36.90秒。具体例7件の通常実行は一般静的証明とは別証拠である。Optional戻り値の検索条件やリスト・ループとの組合せは未確認のまま残す。全体完了とは扱わず、実台帳の完了ゲートは実行しない。
 
 最終の `scripts/check.py` は終了コード0。通常台帳整合性・lint・38ファイル整形・strict型検査、全pytest（172件、600.56秒）、最後のNagini正例成功と狙ったAssert誤例拒否がすべて成功した。保存証拠は `docs/evidence/optional-final-check.log`。全体の台帳はverified 3件・unconfirmed 23件であり、完了候補検査は実行していない。
+
+## 進捗表の更新
+
+`docs/investigation.json`を更新したら、リポジトリのルートで`python scripts/render_progress.py`を実行し、生成された`docs/progress.md`も同じ変更に含めます。既存の仮想環境なら`.venv\Scripts\python.exe scripts\render_progress.py`で実行できます。
+
+表はID・問い・状態・コードと診断へのリンクを全件表示します。doneは問いの調査と分類が済んだという意味で、証明成功・誤実装拒否・非対応・変換失敗・仕様不足を区別します。未確認には未着手と証明未達を含みます。基礎実験の一覧と実用調査の台帳は対象が異なるため、件数を混ぜません。
+
+通常の`scripts/check.py`は`python scripts/render_progress.py --check`も呼び、台帳と表の不一致を拒否します。検査は表を書き換えません。これは表示の更新漏れの検査であり、調査内容の十分性を判定する完了検査ではありません。
