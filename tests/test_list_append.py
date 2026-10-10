@@ -21,17 +21,39 @@ SPECIFICATION = Specification(
 SOURCE = Path(__file__).resolve().parents[1] / "examples" / "list_append.py"
 BODY = "    values.append(value)\n"
 MUTATIONS = (
-    ("extra", "    values.append(value)\n    values.append(value)\n", "len(values) == Old(len(values)) + 1"),
-    ("destroy", "    if len(values) > 0:\n        values[0] += 1\n    values.append(value)\n", "Forall(int, lambda i: Implies(0 <= i and i < Old(len(values)), values[i] == Old(ToSeq(values))[i]))"),
+    (
+        "extra",
+        "    values.append(value)\n    values.append(value)\n",
+        "len(values) == Old(len(values)) + 1",
+    ),
+    (
+        "destroy",
+        "    if len(values) > 0:\n        values[0] += 1\n    values.append(value)\n",
+        "Forall(int, lambda i: Implies(0 <= i and i < Old(len(values)), "
+        "values[i] == Old(ToSeq(values))[i]))",
+    ),
     ("wrong_tail", "    values.append(value + 1)\n", "values[len(values) - 1] == value"),
 )
 
 
 def runtime_function(source: str) -> Callable[[list[int], int], None]:
     """照合した四つの事後条件宣言だけを除き、計算本体を実行する。"""
-    declarations = [line for line in source.splitlines() if line.strip().startswith("Ensures(")]
-    assert len(declarations) == 4
-    runtime = "\n".join(line for line in source.splitlines() if line not in declarations)
+    declarations = (
+        "    Ensures(Acc(list_pred(values)))\n",
+        "    Ensures(len(values) == Old(len(values)) + 1)\n",
+        "    Ensures(\n"
+        "        Forall(\n"
+        "            int,\n"
+        "            lambda i: Implies(0 <= i and i < Old(len(values)), "
+        "values[i] == Old(ToSeq(values))[i]),\n"
+        "        )\n"
+        "    )\n",
+        "    Ensures(values[len(values) - 1] == value)\n",
+    )
+    runtime = source
+    for declaration in declarations:
+        assert runtime.count(declaration) == 1
+        runtime = runtime.replace(declaration, "\n")
     assert "Ensures(" not in runtime
     namespace: dict[str, object] = {}
     exec(compile(runtime, "runtime_list_append.py", "exec"), namespace)
@@ -41,10 +63,12 @@ def runtime_function(source: str) -> Callable[[list[int], int], None]:
 def test_correct_append(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """一般契約の成功と有限例の通常実行を別々に確認する。"""
     monkeypatch.setattr(check, "RESULTS", tmp_path)
-    verify_case(VerificationCase("list_append", SPECIFICATION, ExpectedVerification("verified")), SOURCE)
+    verify_case(
+        VerificationCase("list_append", SPECIFICATION, ExpectedVerification("verified")), SOURCE
+    )
     append = runtime_function(SOURCE.read_text(encoding="utf-8"))
     for before in ([], [7], [-2, -2, 0, 10**100], list(range(1024))):
-        for value in (-10**100, 0, 9):
+        for value in (-(10**100), 0, 9):
             values = before.copy()
             append(values, value)
             assert len(values) == len(before) + 1
@@ -68,14 +92,19 @@ def test_independent_mutations(
         VerificationCase(
             "list_append_" + name,
             SPECIFICATION,
-            ExpectedVerification("proof_failure", (
-                "Postcondition of append_preserving might not hold.",
-                "Assertion " + condition + " might not hold.",
-            )),
+            ExpectedVerification(
+                "proof_failure",
+                (
+                    "Postcondition of append_preserving might not hold.",
+                    "Assertion " + condition + " might not hold.",
+                ),
+            ),
             mutation,
         ),
         path,
     )
     values = [7, -2]
     runtime_function(changed)(values, 9)
-    assert values == {"extra": [7, -2, 9, 9], "destroy": [8, -2, 9], "wrong_tail": [7, -2, 10]}[name]
+    assert (
+        values == {"extra": [7, -2, 9, 9], "destroy": [8, -2, 9], "wrong_tail": [7, -2, 10]}[name]
+    )
