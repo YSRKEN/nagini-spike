@@ -86,7 +86,8 @@ def verify_case(case: VerificationCase, source_path: Path) -> None:
     from scripts import check
 
     code, output = check.run(["-m", "nagini_translation.main", str(source_path)], case.name)
-    assert case.expected.matches(code, output), (
-        f"{case.name}: {case.specification.static}\n"
-        f"期待: {case.expected.category} {case.expected.required_diagnostics}\n{output}"
-    )
+    if not case.expected.matches(code, output):
+        raise AssertionError(
+            f"{case.name}: {case.specification.static}\n"
+            f"期待: {case.expected.category} {case.expected.required_diagnostics}\n{output}"
+        )
