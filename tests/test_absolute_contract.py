@@ -3,11 +3,24 @@
 import subprocess
 import sys
 from pathlib import Path
+from typing import Literal
 
 import pytest
 
 import scripts.check as check
 import scripts.extract_absolute as extractor
+from scripts.verification_cases import (
+    ExpectedVerification,
+    Mutation,
+    Specification,
+    VerificationCase,
+    verify_case,
+)
+
+SPECIFICATION = Specification(
+    "absoluteの結果が非負かつxまたは-x、callerで非負性を利用する",
+    "既知のAST宣言だけを除去したコピーでabsとcallerを照合する",
+)
 
 SOURCE = Path(__file__).resolve().parents[1] / "examples" / "absolute_contract.py"
 
@@ -44,13 +57,16 @@ def test_contract_rejects_mutation(
         original = "    Ensures(ResultT(int) >= 0)\n"
         replacement = ""
         diagnostic = "Assertion result >= 0 might not hold."
-    assert source.count(original) == 1
-    broken = source.replace(original, replacement)
+    change = Mutation(original, replacement)
+    broken = change.apply(source)
     assert broken != source
     path = tmp_path / (mutation + ".py")
     path.write_text(broken, encoding="utf-8")
     monkeypatch.setattr(check, "RESULTS", tmp_path)
-    returncode, output = check.run(["-m", "nagini_translation.main", str(path)], mutation)
-    assert returncode == 1, output
-    assert "Verification failed" in output, output
-    assert diagnostic in output, output
+    category: Literal["verified", "proof_failure"] = "proof_failure"
+    required_diagnostics: list[str] = []
+    required_diagnostics.append(diagnostic)
+    case = VerificationCase(
+        mutation, SPECIFICATION, ExpectedVerification(category, tuple(required_diagnostics)), change
+    )
+    verify_case(case, path)

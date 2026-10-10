@@ -3,11 +3,24 @@
 import subprocess
 import sys
 from pathlib import Path
+from typing import Literal
 
 import pytest
 
 import scripts.check as check
 from examples.list_scan import sum_nonnegative
+from scripts.verification_cases import (
+    ExpectedVerification,
+    Mutation,
+    Specification,
+    VerificationCase,
+    verify_case,
+)
+
+SPECIFICATION = Specification(
+    "非負要素と読取り権限の下で走査途中と結果の非負性、合計等式は仕様にない",
+    "sumと入力不変、負数拒否を照合する。skip_sumは静的に通るが実行照合で失敗する",
+)
 
 SOURCE = Path(__file__).resolve().parents[1] / "examples" / "list_scan.py"
 
@@ -30,8 +43,8 @@ def test_negative_element_fails_at_runtime(values: list[int]) -> None:
 def test_scan_verifies(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """権限と途中の非負性を保つループの最後の条件を検証する。"""
     monkeypatch.setattr(check, "RESULTS", tmp_path)
-    code, output = check.run(["-m", "nagini_translation.main", str(SOURCE)], "list_scan")
-    assert check.accepted(code, output), output
+    case = VerificationCase("list_scan", SPECIFICATION, ExpectedVerification("verified"))
+    verify_case(case, SOURCE)
 
 
 @pytest.mark.parametrize("mutation", ["subtract", "missing_permission", "skip_sum"])
@@ -47,21 +60,23 @@ def test_scan_boundaries(mutation: str, tmp_path: Path, monkeypatch: pytest.Monk
     else:
         original = "        total += values[i]\n"
         replacement = "        total -= values[i]\n" if mutation == "subtract" else ""
-    assert source.count(original) == 1
+    change = Mutation(original, replacement)
     path = tmp_path / (mutation + ".py")
-    path.write_text(source.replace(original, replacement), encoding="utf-8")
+    path.write_text(change.apply(source), encoding="utf-8")
     monkeypatch.setattr(check, "RESULTS", tmp_path)
-    code, output = check.run(["-m", "nagini_translation.main", str(path)], mutation)
+    category: Literal["verified", "proof_failure"] = "proof_failure"
+    required_diagnostics: list[str] = []
     if mutation == "skip_sum":
-        assert check.accepted(code, output), output
+        category = "verified"
+    elif mutation == "subtract":
+        required_diagnostics.append("Loop invariant might not be preserved.")
+        required_diagnostics.append("Assertion total >= 0 might not hold.")
     else:
-        assert code == 1, output
-        assert "Verification failed" in output, output
-        if mutation == "subtract":
-            assert "Loop invariant might not be preserved." in output, output
-            assert "Assertion total >= 0 might not hold." in output, output
-        else:
-            assert "insufficient permission" in output, output
+        required_diagnostics.append("insufficient permission")
+    case = VerificationCase(
+        mutation, SPECIFICATION, ExpectedVerification(category, tuple(required_diagnostics)), change
+    )
+    verify_case(case, path)
     probe = "import runpy,sys; assert runpy.run_path(sys.argv[1])['sum_nonnegative']([1,2,3]) == 6"
     process = subprocess.run(
         [sys.executable, "-c", probe, str(path)], capture_output=True, text=True, timeout=10

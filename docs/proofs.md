@@ -428,3 +428,35 @@ Naginiで扱える範囲は、対応するPythonの処理をViper上に表現で
 assertの削除、成立しない前提による検証逃れ、外部ライブラリの契約と実装の一致は未確認です。
 契約の一部を外す実験は行いましたが、あらゆる仕様の弱体化を検出する検査ではありません。
 現在の成功を、任意のPythonプログラムや外部ライブラリの正しさに一般化はできません。
+
+
+## 共通の検証ケース
+
+既存題材の静的検証は `scripts/verification_cases.py` の型付き形式に揃えた。
+各テストの `SPECIFICATION` は、静的に証明する条件と通常実行で照合する条件を別欄に持つ。
+`VerificationCase` は正例または変更例、期待種別、全必須診断を関連付ける。
+例として、`list_scan` の `subtract` は次の期待値を持つ。
+
+```python
+case = VerificationCase(
+    "subtract",
+    SPECIFICATION,
+    ExpectedVerification(
+        "proof_failure",
+        ("Loop invariant might not be preserved.", "Assertion total >= 0 might not hold."),
+    ),
+    Mutation("        total += values[i]\n", "        total -= values[i]\n"),
+)
+```
+
+正例は終了コード0と `Verification successful`、証明失敗は終了コード1と
+`Verification failed` および全必須診断が揃った場合だけ受理する。矛盾する成功・失敗診断は拒否する。
+位置を必須診断に指定する場合も同じ全一致の規則で扱う。
+起動・変換の失敗や任意の失敗を、誤実装が狙った原因で拒否された証拠にしない。
+変更例は `Mutation.apply` が元の文字列の出現を一箇所に限定して生成する。
+
+通常実行の入力・出力・例外・権限に関する題材固有の検査は、各ケースに対応する同じテストに残す。
+既知の宣言だけを除去する実行用コピーの制約も維持する。
+`list_scan.skip_sum` と `list_write.extra_change` は、弱い静的仕様では証明成功するが
+通常実行の照合では誤りを検出する反例として残る。共通化は契約の数学的一般化ではない。
+調査台帳の未確認項目を、この形式への移行だけで確認済みに変更しない。

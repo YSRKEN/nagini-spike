@@ -3,11 +3,24 @@
 import subprocess
 import sys
 from pathlib import Path
+from typing import Literal
 
 import pytest
 
 import scripts.check as check
 from examples.list_write import replace_first
+from scripts.verification_cases import (
+    ExpectedVerification,
+    Mutation,
+    Specification,
+    VerificationCase,
+    verify_case,
+)
+
+SPECIFICATION = Specification(
+    "全書き込み権限の下で長さ維持と空または先頭が指定値、後続値の維持は仕様にない",
+    "先頭以外も維持される期待値を照合する。extra_changeは静的に通るが実行照合で失敗する",
+)
 
 SOURCE = Path(__file__).resolve().parents[1] / "examples" / "list_write.py"
 
@@ -36,8 +49,8 @@ def test_replacement_matches_python(values: list[int], value: int) -> None:
 def test_replacement_verifies(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """添字の安全性、長さの維持、先頭の値をNaginiで検証する。"""
     monkeypatch.setattr(check, "RESULTS", tmp_path)
-    returncode, output = check.run(["-m", "nagini_translation.main", str(SOURCE)], "list_write")
-    assert check.accepted(returncode, output), output
+    case = VerificationCase("list_write", SPECIFICATION, ExpectedVerification("verified"))
+    verify_case(case, SOURCE)
 
 
 @pytest.mark.parametrize("mutation", ["wrong_value", "read_only", "extra_change"])
@@ -61,19 +74,22 @@ def test_replacement_boundaries(
         original = "values[0] = value"
         replacement = "values[0] = value + 1"
         diagnostic = "Assertion len(values) == 0 or values[0] == value might not hold."
-    assert source.count(original) == 1
-    changed = source.replace(original, replacement)
+    change = Mutation(original, replacement)
+    changed = change.apply(source)
     assert changed != source
     path = tmp_path / (mutation + ".py")
     path.write_text(changed, encoding="utf-8")
     monkeypatch.setattr(check, "RESULTS", tmp_path)
-    returncode, output = check.run(["-m", "nagini_translation.main", str(path)], mutation)
+    category: Literal["verified", "proof_failure"] = "proof_failure"
+    required_diagnostics: list[str] = []
     if mutation == "extra_change":
-        assert check.accepted(returncode, output), output
+        category = "verified"
     else:
-        assert returncode == 1, output
-        assert "Verification failed" in output, output
-        assert diagnostic in output, output
+        required_diagnostics.append(diagnostic)
+    case = VerificationCase(
+        mutation, SPECIFICATION, ExpectedVerification(category, tuple(required_diagnostics)), change
+    )
+    verify_case(case, path)
 
     probe = (
         "import runpy,sys; values = [7, 99]; "
