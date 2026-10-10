@@ -1,5 +1,9 @@
 """期待診断の欠落や別原因の失敗を共通判定器で拒否する。"""
 
+import subprocess
+import sys
+from pathlib import Path
+
 import pytest
 
 from scripts.verification_cases import (
@@ -79,3 +83,47 @@ def test_mutation_keeps_other_source() -> None:
     assert Mutation("return -x", "return x").apply("if x < 0: return -x\nreturn x") == (
         "if x < 0: return x\nreturn x"
     )
+
+
+@pytest.mark.parametrize(
+    "category,code,output,rejected",
+    [
+        ("verified", 1, "Java not found", True),
+        ("proof_failure", 1, "Verification failed unrelated reason", True),
+        ("verified", 0, "Verification successful", False),
+        ("proof_failure", 1, "Verification failed target diagnostic", False),
+    ],
+)
+def test_optimized_process_keeps_verification_gate(
+    category: str, code: int, output: str, rejected: bool
+) -> None:
+    """Python -Oでも誤った診断を拒否し、正しい診断を受理する。"""
+    probe = """
+import sys
+from pathlib import Path
+from unittest.mock import patch
+from scripts.verification_cases import (
+    ExpectedVerification, Specification, VerificationCase, verify_case,
+)
+category, code, output = sys.argv[1:]
+diagnostics = ('target diagnostic',) if category == 'proof_failure' else ()
+case = VerificationCase('optimized', Specification('static', 'runtime'),
+                        ExpectedVerification(category, diagnostics))
+with patch('scripts.check.run', return_value=(int(code), output)):
+    try:
+        verify_case(case, Path('unused.py'))
+    except AssertionError:
+        print('rejected')
+        raise SystemExit(3)
+print('accepted')
+"""
+    root = Path(__file__).resolve().parents[1]
+    process = subprocess.run(
+        [sys.executable, "-O", "-c", probe, category, str(code), output],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    assert process.returncode == (3 if rejected else 0), process.stdout + process.stderr
+    assert process.stdout.strip() == ("rejected" if rejected else "accepted")
