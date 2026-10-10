@@ -26,3 +26,8 @@ PureでもInlineでもない場合は_translate_method_callへ進む。
 _only_translate_method_callはcreate_method_call_nodeを生成する。
 今回の関数にPure/Inline指定はなく、この契約付きメソッド呼出の経路に当たる。
 観測したソースの狭い抜粋はoptional-return-call-model.jsonへ保存した。
+
+最終scripts/check.pyは終了0。台帳整合性・進捗一致・lint・51ファイル整形・strict型検査、
+全pytest 214件（773.99秒）、最後のNagini正例と狙ったAssert拒否がすべて成功した。
+外側全体は798.95秒。pytest制限1200秒と個別90秒、外側1500秒で完走した。
+保存証拠はdocs/evidence/optional-return-final-check.log。
