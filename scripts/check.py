@@ -64,6 +64,7 @@ def main() -> int:
     RESULTS.mkdir(exist_ok=True)
     (RESULTS / "summary.json").write_bytes(b'{"status": "running"}')
     checks = [
+        (["scripts/check_investigation.py"], "investigation"),
         (["-m", "ruff", "check", "examples", "scripts", "tests"], "lint"),
         (["-m", "ruff", "format", "--check", "examples", "scripts", "tests"], "format"),
         (["-m", "pyright"], "types"),
