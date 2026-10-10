@@ -39,4 +39,4 @@ def update_preserving(values: dict[int, int], key: int, value: int) -> None:
         Forall(int, lambda other: Implies(other in values, Old(other in values) or other == key))
     )
     Ensures(len(values) == Old(len(values)) + (0 if Old(key in values) else 1))
-    pass
+    values[key] = value
