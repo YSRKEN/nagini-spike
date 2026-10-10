@@ -89,3 +89,17 @@
 通常実行21有限例は単一要素・先頭/中央/末尾・負整数・巨大整数・1024要素列を別JSONで照合する。空、負添字、範囲外は前提外。共有別名、削除、ループや実用組合せは未確認でありPythonリスト全体の対応を保証しない。全体完了ではなく、実台帳の完了検査は未実行。
 
 最終scripts/check.py終了0。通常台帳整合性・進捗表一致・lint・46ファイル整形・strict型・全pytest191件（813.60秒）・末尾Nagini正例11.39秒と狙ったAssert誤例11.74秒が成功。全体841.81秒。証拠はdocs/evidence/list-update-final-check.log。台帳verified6/unconfirmed20。pytest上限900秒に対して今回は86.40秒の余裕があり、上限と個別検証90秒は維持した。後続の検証追加時はこの実測を基準に上限を見直す。
+
+## 部分文字列のin演算
+
+`string-membership`は任意str text/needle（空文字も許す）の`needle in text`一つに限定した。先に`Result()==(needle in text)`と実在return False stub、成功期待テストを固定した。契約は組込みin演算相対であり、独立した数学的探索モデルの証明ではない。stubの赤は事後条件拒否ではなく変換失敗だった。正実装に変更しても、同契約の常False/Trueでも、終了1の`Translation failed`と`Unsupported function or method __contains__ in type str`をEnsures内@21.25で確認した。正例が証明に到達していないため、誤実装拒否に成功したとは扱わない。
+
+契約を除いた独立の最小再現`string_membership_body.py`でも、return内@19.11で同じ未対応診断となった。導入済み`nagini_translation/resources/builtins.json`のstr functions/methodsに__contains__がなく、`str.sil`にも対応関数がないことを機械抽出した。この版・この演算に限定してunsupportedと記録し、find/indexや添字全体まで推定しない。元の`string-search`は未確認のまま残す。
+
+共通VerificationCaseにtranslation_failureを追加した。終了1・変換失敗の本文・全指定診断と位置が揃った場合だけ受理し、成功/証明失敗との混在、違う位置/本文/終了コード、起動障害を拒否する。Python -Oでも関門を維持する。有限通常実行13例は空探索対象、空本文、存在/不在、重なり、日本語、絵文字、結合文字、NULを扱い、位置とスライスの存在仕様と比較した。これは一般静的証明とは別の証拠である。
+
+全pytest上限は前回813.60秒（900秒に余裕86.40秒）という実測を根拠に、追加実検証の見込みと変動余裕を確保して1200秒へ変更した。先に900対1200で失敗するテストを保存し、変更後の成功を確認した。個別検証90秒を維持し、時間切れを非対応へ分類しない。全調査は未完で、実台帳の完了候補検査は実行しない。
+
+進捗表のstring-membershipのdoneは、限定演算の未対応という制約確認が済んだ意味であり、正実装の証明成功ではない。元string-searchの未確認は保持している。
+
+最終scripts/check.pyは終了0。通常台帳整合性・表一致・lint・49ファイル整形・strict型（0エラー）・全pytest210件（764.36秒）・末尾Nagini正例10.24秒と狙ったAssert誤例10.54秒が成功。全体790.20秒、pytest上限1200秒に余裕435.64秒。保存証拠はdocs/evidence/string-search-final-check.log。これは期待する非対応診断の再現テストも含む検査全体の成功であり、文字列inの証明成功ではない。台帳はverified6・unsupported1・unconfirmed20、全体未完で完了候補検査は未実行。

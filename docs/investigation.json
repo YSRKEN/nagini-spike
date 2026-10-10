@@ -153,11 +153,11 @@
       "id": "string-search",
       "question": "文字列の添字と部分文字列検索の実用的な条件を扱えるか",
       "status": "unconfirmed",
-      "scope": "Nagini 1.3.1; 実験で入力域・所有権・実行条件を限定する",
+      "scope": "Nagini 1.3.1。元の添字と部分文字列検索の問いを維持する。in演算だけは別項目string-membershipで未対応診断を確認。添字、find/index、独立探索仕様、実用境界は未確認。",
       "reproduction": "",
       "expected": "",
       "actual": "",
-      "diagnosis": "",
+      "diagnosis": "string-membershipの狭い非対応結果から文字列添字や検索全体の結論へ広げない。",
       "evidence": []
     },
     {
@@ -343,6 +343,28 @@
       "actual": "",
       "diagnosis": "",
       "evidence": []
+    },
+    {
+      "id": "string-membership",
+      "question": "任意str textとneedleのinによる部分文字列存在判定と契約を変換できるか",
+      "status": "unsupported",
+      "scope": "Nagini 1.3.1、導入済み依存、offline。任意str text/needle、空文字を前提から除かずRequires/Assume/Trustedなし。in演算一つだけを対象とする。",
+      "reproduction": ".venv/Scripts/python.exe -m pytest -q tests/test_string_search.py",
+      "expected": "Result()==(needle in text)の同契約で正例証明成功と常False/Trueの事後条件拒否を期待した。これは組込みin相対の仕様であり、独立した数学的探索モデルではない。",
+      "actual": "契約付きstub、正実装、常False、常Trueはいずれも終了1、Translation failed、Unsupported function or method __contains__ in type strをEnsures内@21.25で診断。契約なし本体も@19.11で同診断。正例証明と誤例事後条件拒否は取得できなかった。",
+      "diagnosis": "導入済みbuiltins.jsonのstr functions/methodsに__contains__がなく、str.silにもstr___contains__がない。実診断と合わせ、この版のin演算を未対応と分類する。タイムアウトや道具障害ではない。有限通常実行13例は位置/スライス存在仕様と一致し、False/Trueの不一致も別証拠。find/index、添字、正規表現、Unicode正規化や組合せは元問いで未確認を維持する。",
+      "evidence": [
+        "examples/string_search.py",
+        "examples/string_membership_body.py",
+        "tests/test_string_search.py",
+        "docs/evidence/string-search-good.log",
+        "docs/evidence/string-search-false.log",
+        "docs/evidence/string-search-true.log",
+        "docs/evidence/string-search-body.log",
+        "docs/evidence/string-search-runtime.json",
+        "docs/evidence/string-search-model.json",
+        "docs/evidence/string-search-red.log"
+      ]
     }
   ]
 }

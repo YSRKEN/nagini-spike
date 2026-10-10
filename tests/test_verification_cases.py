@@ -30,6 +30,7 @@ BAD = VerificationCase(
         (1, "Verification successful", False),
         (0, "", False),
         (0, "Verification successful\nVerification failed", False),
+        (0, "Verification successful\nTranslation failed", False),
     ],
 )
 def test_success_requires_consistent_evidence(code: int, output: str, expected: bool) -> None:
@@ -45,6 +46,11 @@ def test_success_requires_consistent_evidence(code: int, output: str, expected: 
         (1, "Verification failed Postcondition Assertion result >= 0 (6:4)", False),
         (1, "Java not found", False),
         (1, "Verification failed Syntax error", False),
+        (
+            1,
+            "Verification failed Postcondition Assertion result >= 0 (5:4) Translation failed",
+            False,
+        ),
         (0, "Verification failed Postcondition Assertion result >= 0 (5:4)", False),
         (2, "Verification failed Postcondition Assertion result >= 0 (5:4)", False),
         (
@@ -92,6 +98,9 @@ def test_mutation_keeps_other_source() -> None:
         ("proof_failure", 1, "Verification failed unrelated reason", True),
         ("verified", 0, "Verification successful", False),
         ("proof_failure", 1, "Verification failed target diagnostic", False),
+        ("translation_failure", 1, "Translation failed target diagnostic", False),
+        ("translation_failure", 1, "Verification failed target diagnostic", True),
+        ("translation_failure", 0, "Translation failed target diagnostic", True),
     ],
 )
 def test_optimized_process_keeps_verification_gate(
@@ -106,7 +115,7 @@ from scripts.verification_cases import (
     ExpectedVerification, Specification, VerificationCase, verify_case,
 )
 category, code, output = sys.argv[1:]
-diagnostics = ('target diagnostic',) if category == 'proof_failure' else ()
+diagnostics = ('target diagnostic',) if category in ('proof_failure', 'translation_failure') else ()
 case = VerificationCase('optimized', Specification('static', 'runtime'),
                         ExpectedVerification(category, diagnostics))
 with patch('scripts.check.run', return_value=(int(code), output)):
@@ -127,3 +136,33 @@ print('accepted')
     )
     assert process.returncode == (3 if rejected else 0), process.stdout + process.stderr
     assert process.stdout.strip() == ("rejected" if rejected else "accepted")
+
+
+@pytest.mark.parametrize(
+    "code,output,expected",
+    (
+        (1, "Translation failed\nNot supported: target (probe.py@2.3)", True),
+        (0, "Translation failed\nNot supported: target (probe.py@2.3)", False),
+        (2, "Translation failed\nNot supported: target (probe.py@2.3)", False),
+        (1, "Translation failed\nNot supported: other (probe.py@2.3)", False),
+        (1, "Translation failed\nNot supported: target (probe.py@2.4)", False),
+        (1, "Java not found", False),
+        (1, "Verification failed\nNot supported: target (probe.py@2.3)", False),
+        (1, "Translation failed Not supported: target (probe.py@2.3) Verification failed", False),
+        (
+            1,
+            "Translation failed Not supported: target (probe.py@2.3) Verification successful",
+            False,
+        ),
+    ),
+)
+def test_translation_failure_is_separate(code: int, output: str, expected: bool) -> None:
+    """変換失敗を狙った全文位置で照合し証明失敗や起動障害を排除する。"""
+    result = ExpectedVerification("translation_failure", ("Not supported: target (probe.py@2.3)",))
+    assert result.matches(code, output) is expected
+
+
+def test_translation_failure_needs_diagnostics() -> None:
+    """変換失敗にも原因と位置の診断を必須にする。"""
+    with pytest.raises(ValueError):
+        ExpectedVerification("translation_failure")

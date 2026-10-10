@@ -38,20 +38,20 @@ class Mutation:
 
 @dataclass(frozen=True)
 class ExpectedVerification:
-    """成功か、全必須診断を伴う証明失敗かを期待値として固定する。"""
+    """成功・証明失敗・変換失敗と全必須診断を期待値として固定する。"""
 
-    category: Literal["verified", "proof_failure"]
+    category: Literal["verified", "proof_failure", "translation_failure"]
     required_diagnostics: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         """失敗の原因が未指定、または期待値が矛盾していれば拒否する。"""
-        if self.category not in ("verified", "proof_failure"):
+        if self.category not in ("verified", "proof_failure", "translation_failure"):
             raise ValueError("未対応の期待種別です。")
-        if self.category == "proof_failure" and (
+        if self.category in ("proof_failure", "translation_failure") and (
             not self.required_diagnostics
             or any(not text.strip() for text in self.required_diagnostics)
         ):
-            raise ValueError("証明失敗には全ての必須診断を指定してください。")
+            raise ValueError("失敗には全ての必須診断を指定してください。")
         if self.category == "verified" and self.required_diagnostics:
             raise ValueError("成功の期待値に失敗診断を指定できません。")
 
@@ -62,11 +62,21 @@ class ExpectedVerification:
                 returncode == 0
                 and "Verification successful" in output
                 and "Verification failed" not in output
+                and "Translation failed" not in output
+            )
+        if self.category == "translation_failure":
+            return (
+                returncode == 1
+                and "Translation failed" in output
+                and "Verification failed" not in output
+                and "Verification successful" not in output
+                and all(text in output for text in self.required_diagnostics)
             )
         return (
             returncode == 1
             and "Verification failed" in output
             and "Verification successful" not in output
+            and "Translation failed" not in output
             and all(text in output for text in self.required_diagnostics)
         )
 
