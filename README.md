@@ -28,6 +28,8 @@ TDD（先に検査の失敗を確認し、実装して成功させる進め方�
 | クラスの初期化と更新を契約で検証できるか | 整数属性の初期値と1増える更新を保証し、呼び出し側で二回の更新を検証できた | [クラスの実験](docs/proofs.md) |
 | 整数除算の境界条件を検証できるか | 正の除数で再構成の等式と余りの範囲を検証できた。商・余りの誤りとゼロ除算の危険を拒否した | [境界条件の実験](docs/proofs.md) |
 
+| 有限例を通る偽階乗を一般仕様で拒否できるか | 独立Pureの再帰一般定義で正実装が成功。同じ契約で偽6次多項式のHorner形を拒否し、0〜4一致・5で676対120を実測 | [一般階乗契約](docs/proofs.md) |
+
 ## 動かし方
 
 uv、Python 3.13、Java 17が使える環境で、リポジトリのルートから実行します。
@@ -39,7 +41,7 @@ uv run --locked python scripts/check.py
 ```
 
 この手順はWindowsで実行して確認しました。Linux・macOSでは未確認です。
-lint・整形・型検査・153件のテストと、正しい実装の検証・誤実装の拒否が通っています。
+lint・整形・型検査・160件のテストと、正しい実装の検証・誤実装の拒否が通っています。
 誤実装の検証では意図的に`Verification failed`が出ます。
 検査全体の成功は最後のメッセージと終了コードで確認します。
 環境の条件、結果の読み方、開発時の設定は[環境](docs/environments.md)を参照してください。
@@ -59,6 +61,7 @@ lint・整形・型検査・153件のテストと、正しい実装の検証・�
 | [examples/dict_read.py](examples/dict_read.py) | 整数の辞書でキーがあれば値、なければ0を返す例 |
 | [examples/counter_contract.py](examples/counter_contract.py) | 整数属性を初期化し、1増やすメソッドと呼び出し側を契約で検証する例 |
 | [examples/division_boundaries.py](examples/division_boundaries.py) | 正の除数で整数の商と余りを計算し、再構成と余りの範囲を検証する例 |
+| [examples/factorial_general.py](examples/factorial_general.py) | 独立Pureの一般階乗モデルと再帰正実装。偽多項式との同契約比較はテストに保持 |
 | [tests/](tests/) | 具体例の実行、検証成功、狙った理由での拒否を確認する検査 |
 | [scripts/check.py](scripts/check.py) | 検査一式を実行する入口 |
 | [scripts/extract_absolute.py](scripts/extract_absolute.py) | 絶対値の契約付きソースを検証し、実行用コピーを生成する実験 |
