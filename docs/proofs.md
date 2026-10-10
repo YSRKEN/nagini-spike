@@ -460,3 +460,56 @@ case = VerificationCase(
 `list_scan.skip_sum` と `list_write.extra_change` は、弱い静的仕様では証明成功するが
 通常実行の照合では誤りを検出する反例として残る。共通化は契約の数学的一般化ではない。
 調査台帳の未確認項目を、この形式への移行だけで確認済みに変更しない。
+
+
+## 独立した一般階乗契約と偽6次多項式
+
+`examples/factorial_general.py` はPure関数 `fac` を独立に定義する。
+`fac(0)=1`、正の `n` で `fac(n)=n*fac(n-1)` であり、正誤の実装は両方とも
+`Requires(n >= 0)` と `Ensures(Result() == fac(n))` を使う。入力を0〜4に狭めていない。
+`fac` の本体は検証対象で、未証明の性質を `Assume`・`Trusted` で注入していない。
+再帰正実装は実Naginiで成功し、分岐なしの偽多項式は事後条件 `Result()==fac(n)` で拒否された。
+診断は `docs/evidence/factorial-general.log` と `factorial-fake.log` に保存した。
+これらは個人絶対パスを除いたsanitized診断で、相対ソース位置と終了コードを保持する。
+
+偽物の元の式は
+`1+n(n-1)//2+n(n-1)(n-2)//3+3n(n-1)(n-2)(n-3)//8+n²(n-1)(n-2)(n-3)(n-4)`。
+最終の検証誤例は同じ式をHorner形
+`((((((24*n-240)*n+849)*n-1246)*n+663)*n-50)*n+24)//24`
+に整理した。6次の係数は1である。整数係数の展開テストで分子の係数を
+低次から `[24,-50,663,-1246,849,-240,24]` と照合する。
+二つの連続整数積は2、三つは3、四つは24で割り切れる。
+したがって元の各整数除算は非負整数で切り捨てを発生させず、四つの積に3を掛けた項も8で割り切れる。
+分母24へ通分した係数展開は全非負整数での同値根拠であり、有限点の照合だけを同値証明にしていない。
+
+通常実行は実検証した同一ソースから既知のEnsures一行だけを除いたコピーで行う。
+結果は `(n,偽物,math.factorial(n))` が
+`(0,1,1),(1,1,1),(2,2,2),(3,6,6),(4,24,24),(5,676,120)`。
+モデル自体の通常実行も5で120を返す。正例は0〜5、10、50、100を照合した。
+この有限実測と、一般事後条件の静的検証は別の証拠である。
+
+再帰モデルの停止性を独立に証明した結果ではない。Pythonの整数に固定桁の上限はないが、
+モデルと正実装の通常実行にはPythonの再帰上限があり、10000でRecursionErrorを確認する。
+非負整数全体の契約検証を、全入力でPython実行が終了する保証へ一般化しない。
+`while` 版の `result==fac(i)` は保存を証明できず、再帰式をAssertで明示しても証明未達だった。
+Pureに再帰事後条件を追加した探索はViperのConsistencyErrorの診断変換でAttributeErrorとなった。
+元の積形式は直接の拒否診断を取得できず、入力5の同値分岐での拒否を経て、最終的に分岐不要のHorner形を採用した。
+これらの探索結果を最終の成功・誤実装拒否へ混同しない。
+
+再現は `python -m pytest -q tests/test_factorial_general.py`。
+共通のSpecification / VerificationCase / Mutation / ExpectedVerificationで、正例の成功と
+誤例の終了コード1・事後条件の必須診断を照合する。証拠ファイルの存在を真偽判定にしない。
+
+whileモデル一致は新項目 `factorial-loop-model` に未確認として残した。初回三例のsanitized診断は
+`docs/evidence/3-while-probe.log`、`3-while-lemma-probe.log`、`3-while-contract-probe.log`。
+今回の実験を未対応の確定とはせず、追加探索は次回へ残す。
+
+元積形式の直接診断は90秒の上限で取得できず、実測90.278秒で今回のプロセスツリーを終了した。
+`docs/evidence/factorial-product-timeout.log` に上限と終了を記録。
+
+共通判定のassert文はPython -Oで消え、起動失敗や無関係な診断を受理するバグがあった。
+最適化別プロセスの4ケースを先に追加し、2失敗の赤を確認後、明示的なifとraiseへ変更。
+21ケースの緑を確認し、正例/誤例の診断関門を最適化実行でも維持する。
+赤・緑のsanitized証拠は `docs/evidence/verification-optimized-red.log` と
+`verification-optimized-green.log`。通常assertに依存する関門には同形の誤りが起きうるため、
+この機械回帰検査を継続し、ファイル存在だけを真偽判定にしない。
