@@ -3,11 +3,24 @@
 import subprocess
 import sys
 from pathlib import Path
+from typing import Literal
 
 import pytest
 
 import scripts.check as check
 from examples.list_head import first_or_zero
+from scripts.verification_cases import (
+    ExpectedVerification,
+    Mutation,
+    Specification,
+    VerificationCase,
+    verify_case,
+)
+
+SPECIFICATION = Specification(
+    "読み取り権限の下で空なら0、非空なら先頭値を返す",
+    "Pythonの先頭値と入力不変を照合し、誤添字はIndexError、書き換えはAssertionError",
+)
 
 SOURCE = Path(__file__).resolve().parents[1] / "examples" / "list_head.py"
 
@@ -23,8 +36,8 @@ def test_first_matches_python(values: list[int]) -> None:
 def test_first_verifies(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """添字の安全性と、最後の二つの仕様をNaginiで検証する。"""
     monkeypatch.setattr(check, "RESULTS", tmp_path)
-    returncode, output = check.run(["-m", "nagini_translation.main", str(SOURCE)], "list_head")
-    assert check.accepted(returncode, output), output
+    case = VerificationCase("list_head", SPECIFICATION, ExpectedVerification("verified"))
+    verify_case(case, SOURCE)
 
 
 @pytest.mark.parametrize("mutation", ["bad_index", "missing_permission", "write_attempt"])
@@ -51,16 +64,19 @@ def test_first_rejects_mutation(
         original = "result = values[0]"
         replacement = "result = values[1]"
         diagnostic = "The precondition of values[1] might not hold."
-    assert source.count(original) == 1
-    changed = source.replace(original, replacement)
+    change = Mutation(original, replacement)
+    changed = change.apply(source)
     assert changed != source
     path = tmp_path / (mutation + ".py")
     path.write_text(changed, encoding="utf-8")
     monkeypatch.setattr(check, "RESULTS", tmp_path)
-    returncode, output = check.run(["-m", "nagini_translation.main", str(path)], mutation)
-    assert returncode == 1, output
-    assert "Verification failed" in output, output
-    assert diagnostic in output, output
+    category: Literal["verified", "proof_failure"] = "proof_failure"
+    required_diagnostics: list[str] = []
+    required_diagnostics.append(diagnostic)
+    case = VerificationCase(
+        mutation, SPECIFICATION, ExpectedVerification(category, tuple(required_diagnostics)), change
+    )
+    verify_case(case, path)
 
     probe = (
         "import runpy,sys; values = [7]; "

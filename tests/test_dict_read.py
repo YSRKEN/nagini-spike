@@ -3,11 +3,24 @@
 import subprocess
 import sys
 from pathlib import Path
+from typing import Literal
 
 import pytest
 
 import scripts.check as check
 from examples.dict_read import lookup_or_zero
+from scripts.verification_cases import (
+    ExpectedVerification,
+    Mutation,
+    Specification,
+    VerificationCase,
+    verify_case,
+)
+
+SPECIFICATION = Specification(
+    "読取り権限の下でキー存在時の値、不在時0、キー参照の安全性",
+    "dict.getと入力不変を照合する。別キーはKeyError、代入はAssertionError",
+)
 
 SOURCE = Path(__file__).resolve().parents[1] / "examples" / "dict_read.py"
 
@@ -26,8 +39,8 @@ def test_lookup_matches_dict(values: dict[int, int], key: int) -> None:
 def test_lookup_verifies(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """キー存在時の値と不在時の0、および参照の安全性を検証する。"""
     monkeypatch.setattr(check, "RESULTS", tmp_path)
-    code, output = check.run(["-m", "nagini_translation.main", str(SOURCE)], "dict_read")
-    assert check.accepted(code, output), output
+    case = VerificationCase("dict_read", SPECIFICATION, ExpectedVerification("verified"))
+    verify_case(case, SOURCE)
 
 
 @pytest.mark.parametrize("mutation", ["bad_key", "missing_permission", "write_attempt"])
@@ -46,19 +59,22 @@ def test_lookup_rejects_target_failure(
             if mutation == "bad_key"
             else "values[key] = 0\n        result = values[key]"
         )
-    assert source.count(original) == 1
+    change = Mutation(original, replacement)
     path = tmp_path / (mutation + ".py")
-    path.write_text(source.replace(original, replacement), encoding="utf-8")
+    path.write_text(change.apply(source), encoding="utf-8")
     monkeypatch.setattr(check, "RESULTS", tmp_path)
-    code, output = check.run(["-m", "nagini_translation.main", str(path)], mutation)
-    assert code == 1, output
-    assert "Verification failed" in output, output
+    category: Literal["verified", "proof_failure"] = "proof_failure"
+    required_diagnostics: list[str] = []
     if mutation == "bad_key":
-        assert "The precondition of values[key + 1] might not hold." in output, output
+        required_diagnostics.append("The precondition of values[key + 1] might not hold.")
     else:
-        assert "insufficient permission" in output, output
+        required_diagnostics.append("insufficient permission")
         if mutation == "write_attempt":
-            assert "The precondition of values[key] = 0 might not hold." in output, output
+            required_diagnostics.append("The precondition of values[key] = 0 might not hold.")
+    case = VerificationCase(
+        mutation, SPECIFICATION, ExpectedVerification(category, tuple(required_diagnostics)), change
+    )
+    verify_case(case, path)
     probe = (
         "import runpy,sys; values = {1: 7}; "
         "assert runpy.run_path(sys.argv[1])['lookup_or_zero'](values, 1) == 7; "
