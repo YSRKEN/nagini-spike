@@ -20,4 +20,6 @@ def increment_or_default(value: Optional[int]) -> int:
     """
     Ensures(value is not None or Result() == 0)
     Ensures(value is None or Result() == value + 1)
-    return 0
+    if value is None:
+        return 0
+    return value + 1
