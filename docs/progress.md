@@ -2,7 +2,7 @@
 
 <!-- scripts/render_progress.py が investigation.json から生成。直接編集しない。 -->
 
-全26件：調査済み6件（証明成功6件）、未確認20件。
+全27件：調査済み7件（証明成功6件）、未確認20件。
 
 doneは各行の問いについて記録した条件で調査・分類済みという意味です。
 非対応・変換失敗・仕様不足も区別して表示し、Python全体の対応や実運用の安全性は保証しません。
@@ -38,3 +38,4 @@ doneは各行の問いについて記録した条件で調査・分類済みと�
 | `division-combination` | 整数除算とループを組み合わせ分配の総量保存を証明できるか | 未確認 | — |
 | `state-machine-combination` | 継承・状態遷移・例外を組み合わせ不正な遷移の拒否を証明できるか | 未確認 | — |
 | `factorial-loop-model` | 独立Pure再帰モデルと一致するwhile実装を、Assume/Trustedなしで証明できるか | 未確認 | — |
+| `string-membership` | 任意str textとneedleのinによる部分文字列存在判定と契約を変換できるか | done（非対応確認） | [コード](../examples/string_search.py) / [診断](../docs/evidence/string-search-good.log) |
