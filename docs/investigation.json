@@ -33,13 +33,23 @@
     {
       "id": "list-append",
       "question": "append後の長さと既存要素の保存、新しい末尾を証明できるか",
-      "status": "unconfirmed",
-      "scope": "Nagini 1.3.1; 実験で入力域・所有権・実行条件を限定する",
-      "reproduction": "",
-      "expected": "",
-      "actual": "",
-      "diagnosis": "",
-      "evidence": []
+      "status": "verified",
+      "scope": "Nagini 1.3.1。全書き込み権限を持つ任意長の整数リストと任意整数。空を含み、長さや旧値を前提で固定しない。",
+      "reproduction": ".venv/Scripts/python.exe -m pytest -q tests/test_list_append.py",
+      "expected": "同一契約で長さ1増・全旧要素保存・新末尾一致と権限返却を証明。二重追加・旧要素破壊・末尾値ずれの各独立誤例を対応する事後条件で拒否。",
+      "actual": "正例と呼び出し側Verification successful。独立三誤例は終了コード1で各指定事後条件違反。対象4テスト53.36秒。通常実行12具体例で三条件を照合し、各誤例の不一致も実測。",
+      "diagnosis": "Old(ToSeq(values))で独立した入場時の全要素列を参照。Assume/Trustedなし。呼び出し側は契約で長さ・全旧要素・末尾を照合後に再書き込み成功。有限実行例は一般証明と別証拠。既知四Ensures宣言のみ固定照合して通常実行。別名・並行性・権限なし入力は対象外。",
+      "evidence": [
+        "examples/list_append.py",
+        "tests/test_list_append.py",
+        "docs/evidence/list_append.log",
+        "docs/evidence/list_append_extra.log",
+        "docs/evidence/list_append_destroy.log",
+        "docs/evidence/list_append_wrong_tail.log",
+        "docs/evidence/list-append-red.log",
+        "docs/evidence/list-append-runtime.json",
+        "docs/evidence/list-append-red-pytest-replay.log"
+      ]
     },
     {
       "id": "list-update",
