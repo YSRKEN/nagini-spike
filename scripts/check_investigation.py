@@ -136,8 +136,16 @@ def main() -> int:
     """通常検査と完了要求を明示的に切り替える。"""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--require-complete", action="store_true")
+    parser.add_argument(
+        "--candidate-reviewed",
+        action="store_true",
+        help="計画役が証拠と未解決範囲を照合し、完了候補と判断したことを明示する",
+    )
     parser.add_argument("--ledger", type=Path, default=Path("docs/investigation.json"))
     arguments = parser.parse_args()
+    if arguments.require_complete != arguments.candidate_reviewed:
+        print("完了候補のレビュー明示と--require-completeは同時に指定してください。")
+        return 2
     root = Path(__file__).resolve().parents[1]
     errors = validate(arguments.ledger, root, require_complete=arguments.require_complete)
     for error in errors:
