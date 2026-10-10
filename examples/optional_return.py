@@ -22,7 +22,7 @@ def nonnegative_or_none(value: int) -> Optional[int]:
     Ensures(Result() is None or Result() == value)
     if value < 0:
         return None
-    return None
+    return value
 
 
 def increment_nonnegative(value: int) -> int:

@@ -81,7 +81,7 @@ def test_return_mutations(
         if name == "value"
         else "Assertion (Result() is None) == (value < 0) might not hold."
     )
-    position = "22.12--22.47" if name == "value" else "21.12--21.46"
+    position = "22.12--22.49" if name == "value" else "21.12--21.45"
     verify_case(
         VerificationCase(
             "optional_return_" + name,
@@ -98,3 +98,8 @@ def test_return_mutations(
         ),
         path,
     )
+    output = (tmp_path / ("optional_return_" + name + ".log")).read_text(encoding="utf-8")
+    assert output.count("Postcondition of nonnegative_or_none might not hold.") == 1
+    select, _ = runtime_functions(changed)
+    value = -1 if name == "negative" else 2
+    assert select(value) != (None if value < 0 else value)
