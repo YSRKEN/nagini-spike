@@ -18,6 +18,6 @@ def concatenate(a: str, b: str) -> str:
     str
         連結内容と長さを満たす文字列。
     """
-    Ensures(Result() == a + b)
     Ensures(len(Result()) == len(a) + len(b))
-    return a
+    Ensures(Result() == a + b)
+    return a + b
