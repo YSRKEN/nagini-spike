@@ -54,3 +54,9 @@
 23. `filter-combination` — Optionalとリスト走査を組み合わせ条件に合う要素だけを抽出できるか
 24. `division-combination` — 整数除算とループを組み合わせ分配の総量保存を証明できるか
 25. `state-machine-combination` — 継承・状態遷移・例外を組み合わせ不正な遷移の拒否を証明できるか
+
+次回の狭い追加未確認項目として、`factorial-loop-model` を台帳に登録した。
+問いは「独立Pure再帰モデルと一致するwhile実装を、Assume/Trustedなしで証明できるか」。
+初回の不変条件保存と再帰式Assertは証明未達、Pure再帰Ensuresは診断変換例外だった。
+これを未対応の確定とはせず、次回に証明情報の与え方を再探索する。
+再帰正実装とHorner偽多項式の比較が成功した `factorial-general` とは区別する。
