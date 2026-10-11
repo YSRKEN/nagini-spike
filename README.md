@@ -37,5 +37,6 @@ uv run --locked python scripts/check.py
 | Python機能の確認範囲と実行上の制約 | [Pythonの機能](docs/language.md) |
 | テストと証明の違い、契約と誤実装の拒否 | [仕様と検証](docs/proofs.md) |
 | 環境構築、ログ、開発設定 | [実行環境](docs/environments.md) |
+| 時間切れ時のプロセス回収と限定範囲 | [子孫プロセスの回収](docs/timeout-process-cleanup.md) |
 
 構成の参考は[bend2-spike](https://github.com/YSRKEN/bend2-spike)です。参考元のコードは取り込んでいません。

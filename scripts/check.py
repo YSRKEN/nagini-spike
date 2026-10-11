@@ -11,6 +11,7 @@ from typing import cast
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from scripts.process_runner import run_captured
 from scripts.verification_cases import (
     ExpectedVerification,
     Mutation,
@@ -50,17 +51,23 @@ def run(arguments: list[str], label: str) -> tuple[int, str]:
         if not z3_path.is_file():
             raise FileNotFoundError("仮想環境に同梱されたZ3がありません。")
         environment["Z3_EXE"] = str(z3_path)
-    process = subprocess.run(
-        [sys.executable, *arguments],
-        cwd=ROOT,
-        env=environment,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        timeout=timeout_for(arguments),
-        check=False,
-    )
+    try:
+        process = run_captured(
+            [sys.executable, *arguments],
+            cwd=ROOT,
+            env=environment,
+            timeout=timeout_for(arguments),
+        )
+    except subprocess.TimeoutExpired as error:
+
+        def decoded(value: str | bytes | None) -> str:
+            return value.decode("utf-8", "replace") if isinstance(value, bytes) else value or ""
+
+        output = decoded(error.stdout) + decoded(error.stderr)
+        output += f"\ntimeout: {label} exceeded {error.timeout} seconds\n"
+        (RESULTS / (label + ".log")).write_bytes(output.encode("utf-8"))
+        print(output, flush=True)
+        raise
     output = process.stdout + process.stderr
     (RESULTS / (label + ".log")).write_bytes(output.encode("utf-8"))
     print(output, end="" if output.endswith("\n") else "\n", flush=True)
