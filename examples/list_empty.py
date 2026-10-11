@@ -30,7 +30,7 @@ def has_head(values: list[int]) -> bool:
     Ensures(len(values) == Old(len(values)))
     Ensures(ToSeq(values) == Old(ToSeq(values)))
     Ensures(Result() == (len(values) > 0))
-    return False
+    return len(values) > 0
 
 
 def read_or_default(values: list[int], default: int) -> int:
