@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Literal
 
 Expectation = Literal["verified", "rejected", "unsupported"]
-Outcome = Literal["verified", "rejected", "unsupported", "error", "timeout"]
+Outcome = Literal["verified", "rejected", "unsupported", "error", "crashed", "timeout"]
 
 AREAS = {
     "control": "型と制御構造",
@@ -25,11 +25,12 @@ OUTCOME_LABELS: dict[Outcome, str] = {
     "rejected": "拒否",
     "unsupported": "非対応",
     "error": "変換エラー",
+    "crashed": "異常終了",
     "timeout": "時間切れ",
 }
 START = "<!-- results:start -->"
 END = "<!-- results:end -->"
-_LOCATION = re.compile(r"\s*\([^()]*@[^()]*\)$")
+_LOCATION = re.compile(r"\s*\([^()]*@[^()]*\)\.?$")
 
 
 @dataclass(frozen=True)
@@ -74,7 +75,13 @@ class CheckResult:
 
     @property
     def passed(self) -> bool:
-        """結果が期待と一致したかを返す。"""
+        """結果が期待と一致したかを返す。
+
+        非対応の題材は「使えない」ことを示すものなので、非対応の報告のほか、
+        変換中に Nagini が異常終了した場合も期待どおりとする。
+        """
+        if self.check.expected == "unsupported":
+            return self.outcome in ("unsupported", "crashed")
         return self.outcome == self.check.expected
 
 
@@ -119,7 +126,33 @@ def first_error(response: str) -> str:
             return _LOCATION.sub("", lines[index + 1])
         if line.startswith("Not supported"):
             return _LOCATION.sub("", line)
+        if line == "Translation failed" and index + 1 < len(lines):
+            return _LOCATION.sub("", lines[index + 1])
     return ""
+
+
+def judge(status: Literal["answered", "timeout", "crashed"], text: str) -> tuple[Outcome, str]:
+    """サーバへの要求の結果を、題材の結果と報告内容に変える。
+
+    Parameters
+    ----------
+    status : {"answered", "timeout", "crashed"}
+        応答が返った、時間切れになった、サーバが途中で終わった、のどれか。
+    text : str
+        応答の本文。サーバが終わったときは、その間にサーバが出した出力。
+
+    Returns
+    -------
+    tuple of (Outcome, str)
+        結果と、結果表に載せる報告内容。
+    """
+    if status == "timeout":
+        return "timeout", ""
+    if status == "crashed":
+        lines = [line.strip() for line in text.splitlines() if line.strip()]
+        return "crashed", "サーバが異常終了" + (f": {lines[-1]}" if lines else "")
+    outcome = classify(text)
+    return outcome, "" if outcome == "verified" else first_error(text)
 
 
 def _is_wrong(name: str) -> bool:

@@ -9,6 +9,7 @@ from scripts.verification_plan import (
     CheckResult,
     classify,
     first_error,
+    judge,
     plan,
     render_table,
     replace_section,
@@ -43,6 +44,14 @@ def test_first_error_returns_the_first_reported_error_without_location() -> None
         "Not supported: Unsupported function or method __getitem__ in type str"
     )
     assert first_error(VERIFIED) == ""
+
+
+def test_first_error_strips_location_followed_by_period_and_reads_translation_errors() -> None:
+    """位置の括弧のあとに句点があっても外し、変換エラーの内容も返す。"""
+    failed = "Verification failed\nErrors:\nAssertion x might not hold. (a.py@39.12--39.88).\n"
+    assert first_error(failed) == "Assertion x might not hold."
+    invalid = "Translation failed\nInvalid program: invalid.contract.position (a.py@17.4)\n"
+    assert first_error(invalid) == "Invalid program: invalid.contract.position"
 
 
 SOURCE = '''"""絶対値。"""
@@ -153,3 +162,34 @@ def test_replace_section_swaps_only_the_marked_block() -> None:
     )
     with pytest.raises(ValueError):
         replace_section("印が無い\n", "表\n")
+
+
+CRASH = (
+    "Traceback (most recent call last):\n"
+    '  File "call.py", line 826, in _has_implicit_receiver_arg\n'
+    "    assert isinstance(called_func, PythonMethod)\n"
+    "AssertionError\n"
+)
+
+
+def test_judge_maps_server_status_and_response_to_outcome_and_detail() -> None:
+    """応答・時間切れ・異常終了を、結果と報告内容に変える。"""
+    assert judge("answered", VERIFIED) == ("verified", "")
+    assert judge("answered", FAILED) == (
+        "rejected",
+        "Postcondition of wrong_absolute might not hold. Assertion Result() >= 0 might not hold.",
+    )
+    assert judge("timeout", "") == ("timeout", "")
+    assert judge("crashed", CRASH) == ("crashed", "サーバが異常終了: AssertionError")
+    assert judge("crashed", "") == ("crashed", "サーバが異常終了")
+
+
+def test_unsupported_check_accepts_report_or_crash_but_not_other_errors() -> None:
+    """非対応の題材は、非対応の報告か異常終了なら期待どおりとする。"""
+    check = Check("非対応", None, "unsupported")
+    assert CheckResult(check, "unsupported", 0.5, "").passed
+    assert CheckResult(check, "crashed", 0.5, "").passed
+    assert not CheckResult(check, "error", 0.5, "").passed
+    assert not CheckResult(check, "verified", 0.5, "").passed
+    wrong = Check("wrong_absolute", "wrong_absolute", "rejected")
+    assert not CheckResult(wrong, "crashed", 0.5, "").passed

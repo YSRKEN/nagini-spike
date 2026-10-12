@@ -10,12 +10,14 @@ import subprocess
 import sys
 import threading
 import time
+from dataclasses import dataclass
 from pathlib import Path
 from types import TracebackType
+from typing import Literal
 
 import zmq
 
-if os.name == "nt":
+if sys.platform == "win32":
     from scripts.process_runner import WindowsJob
 
 SERVER_URL = "tcp://127.0.0.1:5555"
@@ -28,6 +30,25 @@ _BOOTSTRAP = (
     "sys.stdin.buffer.read(1); "
     "sys.exit(subprocess.call(sys.argv[1:], stdin=subprocess.DEVNULL))"
 )
+
+
+@dataclass(frozen=True)
+class Reply:
+    """サーバへの1回の要求の結果。
+
+    Attributes
+    ----------
+    status : {"answered", "timeout", "crashed"}
+        応答が返った、時間切れになった、サーバが途中で終わった、のどれか。
+    text : str
+        応答の本文。サーバが終わったときは、その間にサーバが出した出力。
+    seconds : float
+        要求から結果が分かるまでの秒数。
+    """
+
+    status: Literal["answered", "timeout", "crashed"]
+    text: str
+    seconds: float
 
 
 class NaginiServer:
@@ -44,11 +65,13 @@ class NaginiServer:
     def __init__(self, root: Path, placeholder: Path) -> None:
         self.root = root
         self.placeholder = placeholder
-        self.context = zmq.Context.instance()
+        self.context: zmq.Context[zmq.Socket[bytes]] = zmq.Context.instance()
         self.process: subprocess.Popen[bytes] | None = None
         self.job: WindowsJob | None = None
+        self.output: list[str] = []
 
     def __enter__(self) -> "NaginiServer":
+        """サーバを起動して返す。"""
         self.start()
         return self
 
@@ -58,6 +81,7 @@ class NaginiServer:
         error: BaseException | None,
         trace: TracebackType | None,
     ) -> None:
+        """サーバを止める。"""
         self.stop()
 
     def start(self) -> None:
@@ -73,11 +97,11 @@ class NaginiServer:
         environment = os.environ.copy()
         environment["PYTHONUTF8"] = "1"
         # 仮想環境の外の Python から起動すると、Nagini が Z3 を見つけられない。
-        z3 = Path(sys.prefix) / "bin" / ("z3.exe" if os.name == "nt" else "z3")
+        z3 = Path(sys.prefix) / "bin" / ("z3.exe" if sys.platform == "win32" else "z3")
         if not z3.is_file():
             raise FileNotFoundError(f"仮想環境に同梱された Z3 が無い: {z3}")
         environment["Z3_EXE"] = str(z3)
-        if os.name == "nt":
+        if sys.platform == "win32":
             self.job = WindowsJob()
             base = str(getattr(sys, "_base_executable"))
             self.process = subprocess.Popen(
@@ -109,6 +133,7 @@ class NaginiServer:
         stdout = self.process.stdout
         ready = threading.Event()
         output: list[str] = []
+        self.output = output
 
         def read() -> None:
             for raw in stdout:
@@ -128,16 +153,17 @@ class NaginiServer:
         """サーバを子孫ごと止める。"""
         if self.process is None:
             return
-        if self.job is not None:
-            self.job.terminate_and_wait()
-            self.job.close()
-            self.job = None
+        if sys.platform == "win32":
+            if self.job is not None:
+                self.job.terminate_and_wait()
+                self.job.close()
+                self.job = None
         elif self.process.poll() is None:
             os.killpg(self.process.pid, 9)
         self.process.wait(timeout=10)
         self.process = None
 
-    def verify(self, path: Path, select: str | None, timeout: float) -> tuple[str | None, float]:
+    def verify(self, path: Path, select: str | None, timeout: float) -> Reply:
         """題材を1件検証する。
 
         Parameters
@@ -151,26 +177,35 @@ class NaginiServer:
 
         Returns
         -------
-        tuple of (str or None, float)
-            Nagini の応答（時間切れなら None）と、要求から応答までの秒数。
+        Reply
+            Nagini の応答。時間切れやサーバの異常終了のときは、サーバを起動し直してから返す。
         """
+        assert self.process is not None
         request: dict[str, str] = {"file": str(path)}
         if select:
             request["select"] = select
         socket = self.context.socket(zmq.REQ)
         socket.setsockopt(zmq.LINGER, 0)
-        socket.setsockopt(zmq.RCVTIMEO, int(timeout * 1000))
         socket.connect(SERVER_URL)
+        poller = zmq.Poller()
+        poller.register(socket, zmq.POLLIN)
+        mark = len(self.output)
         start = time.perf_counter()
+        socket.send_string(json.dumps(request))
+        reply: Reply | None = None
         try:
-            socket.send_string(json.dumps(request))
-            response: str | None = socket.recv_string()
-        except zmq.Again:
-            response = None
+            while reply is None:
+                seconds = time.perf_counter() - start
+                if poller.poll(200):
+                    reply = Reply("answered", socket.recv_string(), seconds)
+                elif self.process.poll() is not None:
+                    # Nagini は変換中の Python 例外を捕まえず、サーバごと終わる。
+                    reply = Reply("crashed", "".join(self.output[mark:]), seconds)
+                elif seconds > timeout:
+                    reply = Reply("timeout", "", seconds)
         finally:
             socket.close()
-        seconds = time.perf_counter() - start
-        if response is None:
+        if reply.status != "answered":
             self.stop()
             self.start()
-        return response, seconds
+        return reply

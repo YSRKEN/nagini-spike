@@ -22,9 +22,7 @@ from scripts.nagini_server import NaginiServer
 from scripts.verification_plan import (
     AREAS,
     CheckResult,
-    Outcome,
-    classify,
-    first_error,
+    judge,
     plan,
     render_table,
     replace_section,
@@ -59,14 +57,13 @@ def main(arguments: list[str]) -> int:
             relative = path.relative_to(ROOT)
             rows[relative] = []
             for check in checks:
-                response, seconds = server.verify(path, check.select, TIMEOUT)
-                outcome: Outcome = "timeout" if response is None else classify(response)
-                detail = "" if response is None or outcome == "verified" else first_error(response)
-                result = CheckResult(check, outcome, seconds, detail)
+                reply = server.verify(path, check.select, TIMEOUT)
+                outcome, detail = judge(reply.status, reply.text)
+                result = CheckResult(check, outcome, reply.seconds, detail)
                 rows[relative].append(result)
                 mark = "ok" if result.passed else "NG"
                 print(
-                    f"{mark} {relative.as_posix()} {check.label}: {outcome} ({seconds:.1f}s)",
+                    f"{mark} {relative.as_posix()} {check.label}: {outcome} ({reply.seconds:.1f}s)",
                     flush=True,
                 )
     elapsed = time.perf_counter() - started
