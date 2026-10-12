@@ -34,4 +34,4 @@ venvPath = "."
 venv = ".venv"
 typeCheckingMode = "strict"
 pythonVersion = "3.12"
-include = ["examples", "tests", "scripts"]
+include = ["features", "tests", "scripts"]
