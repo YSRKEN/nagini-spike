@@ -1,6 +1,6 @@
 # Issue tracker: Local Markdown
 
-このリポジトリの issue と仕様は、`.scratch/` の下に markdown ファイルとして置く。
+このリポジトリの issue と仕様は、`.scratch/` の下に markdown ファイルとして置く。作業の記録なので公開せず、`.gitignore` で Git の追跡から外している。
 
 ## 決まり
 
