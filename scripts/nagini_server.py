@@ -18,7 +18,7 @@ from typing import Literal
 import zmq
 
 if sys.platform == "win32":
-    from scripts.process_runner import WindowsJob
+    from scripts.windows_job import WindowsJob
 
 SERVER_URL = "tcp://127.0.0.1:5555"
 READY = "Server started successfully"

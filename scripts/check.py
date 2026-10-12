@@ -1,135 +1,45 @@
-"""作業場所を固定し、通常の検査とNaginiの成功・拒否を確認する。"""
+"""リポジトリの検査をまとめて流す。
+
+使い方::
+
+    uv run --locked python scripts/check.py
+
+lint・整形・型検査・一括実行のテスト・全題材の検証を順に流し、どれかが落ちたらそこで止める。
+README の結果表は書き換えない。書き換えるときは ``scripts/verify_all.py --write-readme`` を使う。
+"""
 
 import io
-import json
-import os
 import subprocess
 import sys
+import time
 from pathlib import Path
 from typing import cast
 
-if __package__ in (None, ""):
-    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
-from scripts.process_runner import run_captured
-from scripts.verification_cases import (
-    ExpectedVerification,
-    Mutation,
-    Specification,
-    VerificationCase,
-)
-
 ROOT = Path(__file__).resolve().parents[1]
-RESULTS = ROOT / "results"
-
-
-def accepted(returncode: int, output: str) -> bool:
-    """終了コードと検証成功の診断が揃っているかを返す。"""
-    return ExpectedVerification("verified").matches(returncode, output)
-
-
-def rejected(returncode: int, output: str) -> bool:
-    """今回壊した非負条件の検証失敗であるかを返す。"""
-    return ExpectedVerification(
-        "proof_failure", ("Assertion result >= 0 might not hold.",)
-    ).matches(returncode, output)
-
-
-def timeout_for(arguments: list[str]) -> int:
-    """個々の検証と、それらをまとめて実行するテストの制限を返す。"""
-    return 1200 if arguments[:2] == ["-m", "pytest"] else 90
-
-
-def run(arguments: list[str], label: str) -> tuple[int, str]:
-    """タイムアウトを設け、プロジェクト内だけで検査を実行する。"""
-    print(label, flush=True)
-    environment = os.environ.copy()
-    environment["PYTHONUTF8"] = "1"
-    if "nagini_translation.main" in arguments:
-        z3_name = "z3.exe" if os.name == "nt" else "z3"
-        z3_path = Path(sys.prefix) / "bin" / z3_name
-        if not z3_path.is_file():
-            raise FileNotFoundError("仮想環境に同梱されたZ3がありません。")
-        environment["Z3_EXE"] = str(z3_path)
-    try:
-        process = run_captured(
-            [sys.executable, *arguments],
-            cwd=ROOT,
-            env=environment,
-            timeout=timeout_for(arguments),
-        )
-    except subprocess.TimeoutExpired as error:
-
-        def decoded(value: str | bytes | None) -> str:
-            return value.decode("utf-8", "replace") if isinstance(value, bytes) else value or ""
-
-        output = decoded(error.stdout) + decoded(error.stderr)
-        output += f"\ntimeout: {label} exceeded {error.timeout} seconds\n"
-        (RESULTS / (label + ".log")).write_bytes(output.encode("utf-8"))
-        print(output, flush=True)
-        raise
-    output = process.stdout + process.stderr
-    (RESULTS / (label + ".log")).write_bytes(output.encode("utf-8"))
-    print(output, end="" if output.endswith("\n") else "\n", flush=True)
-    return process.returncode, output
+TARGETS = ["features", "scripts", "tests"]
+STEPS = [
+    ("lint", ["-m", "ruff", "check", *TARGETS]),
+    ("format", ["-m", "ruff", "format", "--check", *TARGETS]),
+    ("types", ["-m", "pyright"]),
+    ("tests", ["-m", "pytest", "-q"]),
+    ("verify", ["scripts/verify_all.py"]),
+]
 
 
 def main() -> int:
-    """通常の検査と、正しい実装・誤実装の検証を順に実行する。"""
-    RESULTS.mkdir(exist_ok=True)
-    (RESULTS / "summary.json").write_bytes(b'{"status": "running"}')
-    checks = [
-        (["scripts/check_investigation.py"], "investigation"),
-        (["scripts/render_progress.py", "--check"], "progress"),
-        (["-m", "ruff", "check", "examples", "scripts", "tests"], "lint"),
-        (["-m", "ruff", "format", "--check", "examples", "scripts", "tests"], "format"),
-        (["-m", "pyright"], "types"),
-        (["-m", "pytest", "-q", "tests"], "tests"),
-    ]
-    for arguments, label in checks:
-        returncode, _ = run(arguments, label)
+    """検査を順に流し、すべて通れば 0 を返す。"""
+    for label, arguments in STEPS:
+        print(f"== {label}", flush=True)
+        started = time.perf_counter()
+        returncode = subprocess.call([sys.executable, *arguments], cwd=ROOT)
+        print(f"== {label}: {time.perf_counter() - started:.0f} 秒", flush=True)
         if returncode != 0:
+            print(f"{label} が通らなかった。")
             return 1
-
-    specification = Specification(
-        "分岐後のresultが非負かつxまたは-xに等しい", "absと通常実行の結果を照合する"
-    )
-    good = VerificationCase("absolute", specification, ExpectedVerification("verified"))
-    returncode, output = run(["-m", "nagini_translation.main", "examples/absolute.py"], good.name)
-    if not good.expected.matches(returncode, output):
-        print("正しい実装の検証成功を確認できません。")
-        return 1
-
-    source = (ROOT / "examples/absolute.py").read_text(encoding="utf-8")
-    bad = VerificationCase(
-        "absolute_bad",
-        specification,
-        ExpectedVerification("proof_failure", ("Assertion result >= 0 might not hold.",)),
-        Mutation("result = -x", "result = x"),
-    )
-    assert bad.mutation is not None
-    broken = bad.mutation.apply(source)
-    (RESULTS / "absolute_bad.py").write_bytes(broken.encode("utf-8"))
-    returncode, output = run(
-        ["-m", "nagini_translation.main", "results/absolute_bad.py"], "absolute_bad"
-    )
-    if not bad.expected.matches(returncode, output):
-        print("誤実装が狙った条件で拒否されたことを確認できません。")
-        return 1
-
-    summary = {"absolute": "verified", "absolute_bad": "rejected_at_nonnegative_assertion"}
-    (RESULTS / "summary.json").write_bytes(
-        (json.dumps(summary, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
-    )
-    print("すべての検査に成功しました。")
+    print("すべての検査が通った。")
     return 0
 
 
 if __name__ == "__main__":
     cast("io.TextIOWrapper[io.BufferedWriter]", sys.stdout).reconfigure(encoding="utf-8")
-    cast("io.TextIOWrapper[io.BufferedWriter]", sys.stderr).reconfigure(encoding="utf-8")
-    try:
-        raise SystemExit(main())
-    except (OSError, subprocess.TimeoutExpired) as error:
-        print("検査を完了できません: " + str(error), file=sys.stderr)
-        raise SystemExit(1) from error
+    raise SystemExit(main())
